@@ -97,3 +97,79 @@ ssh root@47.107.36.182 "cd /opt/coworking && tar -xzf coworking.tar.gz && rm cow
 ```
 
 > 数据库数据（用户、项目等）存储在 Docker volume 中，重新构建不会丢失。
+
+---
+
+## Git 版本管理
+
+仓库地址：`https://github.com/JettyanWong/Co-Working.git`
+
+### 提交并推送修改
+
+```bash
+cd /Volumes/Jett/projects/Co-working
+
+# 查看修改了哪些文件
+git status
+
+# 添加所有修改的文件
+git add .
+
+# 提交（commit message 描述本次修改）
+git commit -m "类型: 修改说明"
+
+# 推送到 GitHub
+git push origin main
+```
+
+Commit message 类型约定：`feat`（新功能）、`fix`（修复）、`refactor`（重构）、`docs`（文档）、`style`（样式）、`test`（测试）、`chore`（杂项）。
+
+### 拉取远程更新（先于本地修改之前）
+
+```bash
+cd /Volumes/Jett/projects/Co-working
+git pull origin main
+```
+
+### 解决推送冲突
+
+如果推送时遇到 `rejected` 错误，说明远程有新提交：
+
+```bash
+# 拉取并 rebase（推荐，保持历史线性）
+git pull origin main --rebase
+
+# 解决冲突后继续
+git add .
+git rebase --continue
+
+# 推送
+git push origin main
+```
+
+如果不想 rebase，也可以用 merge：
+
+```bash
+git pull origin main --no-rebase
+# 解决冲突后
+git add .
+git commit -m "merge: 合并远程更新"
+git push origin main
+```
+
+### 本地未跟踪的文件不提交
+
+`.gitignore` 已排除：`venv/`、`__pycache__/`、`*.pyc`、`.env`、`uploads/`、`instance/`、`*.db`、`.DS_Store`。新增敏感文件或大文件请先加入 `.gitignore`。
+
+### 回退某次提交（未推送）
+
+```bash
+# 回退最近一次 commit，保留文件修改
+git reset --soft HEAD~1
+```
+
+### 查看提交历史
+
+```bash
+git log --oneline -10
+```
