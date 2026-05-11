@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台 - Coworking</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        .header { background: #2c3e50; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 20px; }
+        .header a { color: white; text-decoration: none; }
+        .main { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
+        .card h2 { margin-bottom: 15px; color: #333; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; }
+        .btn { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn-warning:hover { background: #e0a800; }
+        .btn-info { background: #17a2b8; color: white; }
+        .btn-info:hover { background: #138496; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f8f8f8; color: #666; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-pending { background: #fff3cd; color: #856404; }
+        .badge-active { background: #d4edda; color: #155724; }
+        .badge-disabled { background: #f8d7da; color: #721c24; }
+        .badge-admin { background: #d1ecf1; color: #0c5460; }
+        .badge-member { background: #e9ecef; color: #666; }
+        .tabs { display: flex; gap: 0; margin-bottom: 20px; }
+        .tab { padding: 10px 20px; background: #e9ecef; border: none; cursor: pointer; font-size: 14px; border-radius: 4px 4px 0 0; }
+        .tab.active { background: #2c3e50; color: white; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><a href="/static/index.html">←</a> 管理后台</h1>
+        <a href="/static/index.html">返回首页</a>
+    </div>
+
+    <div class="main">
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('users')">用户管理</button>
+            <button class="tab" onclick="showTab('pending')">待审核 <span id="pendingCount" style="background:#dc3545;color:white;padding:2px 6px;border-radius:10px;font-size:11px;">0</span></button>
+        </div>
+
+        <!-- All Users -->
+        <div id="usersTab" class="card">
+            <h2>所有用户</h2>
+            <table>
+                <thead>
+                    <tr><th>ID</th><th>用户名</th><th>邮箱</th><th>角色</th><th>状态</th><th>注册时间</th><th>操作</th></tr>
+                </thead>
+                <tbody id="usersTable"></tbody>
+            </table>
+        </div>
+
+        <!-- Pending Users -->
+        <div id="pendingTab" class="card" style="display:none;">
+            <h2>待审核用户</h2>
+            <table>
+                <thead>
+                    <tr><th>ID</th><th>用户名</th><th>邮箱</th><th>注册时间</th><th>操作</th></tr>
+                </thead>
+                <tbody id="pendingTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+        let allUsers = [];
+
+        const userJson = localStorage.getItem('user');
+        if (!userJson) {
+            window.location.href = '/login.html';
+        }
+        const currentUser = JSON.parse(userJson);
+        if (currentUser.role !== 'admin') {
+            alert('无权访问管理后台');
+            window.location.href = '/static/index.html';
+        }
+
+        async function api(endpoint, options = {}) {
+            const res = await fetch(`${API_BASE}${endpoint}`, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...options.headers }
+            });
+            return res;
+        }
+
+        async function loadUsers() {
+            const res = await api('/users');
+            if (!res.ok) {
+                if (res.status === 403) {
+                    alert('无权访问');
+                    window.location.href = '/static/index.html';
+                }
+                return;
+            }
+            const data = await res.json();
+            allUsers = data.users || [];
+            renderAllUsers();
+            renderPendingUsers();
+        }
+
+        function statusBadge(status) {
+            const map = { pending: ['待审核', 'badge-pending'], active: ['正常', 'badge-active'], disabled: ['已禁用', 'badge-disabled'] };
+            const [label, cls] = map[status] || [status, ''];
+            return `<span class="badge ${cls}">${label}</span>`;
+        }
+
+        function roleBadge(role) {
+            return `<span class="badge ${role === 'admin' ? 'badge-admin' : 'badge-member'}">${role === 'admin' ? '管理员' : '成员'}</span>`;
+        }
+
+        function renderAllUsers() {
+            const tbody = document.getElementById('usersTable');
+            tbody.innerHTML = allUsers.map(u => `
+                <tr>
+                    <td>${u.id}</td>
+                    <td>${u.username}</td>
+                    <td>${u.email}</td>
+                    <td>${roleBadge(u.role)}</td>
+                    <td>${statusBadge(u.status)}</td>
+                    <td>${u.created_at ? new Date(u.created_at).toLocaleString('zh-CN') : '-'}</td>
+                    <td>
+                        ${u.id !== currentUser.id ? `
+                            ${u.status === 'pending' ? `<button class="btn btn-success" onclick="approveUser(${u.id})">通过</button>
+                               <button class="btn btn-danger" onclick="rejectUser(${u.id})" style="margin-left:4px;">拒绝</button>` : ''}
+                            ${u.status === 'active' ? `<button class="btn btn-warning" onclick="disableUser(${u.id})">禁用</button>` : ''}
+                            ${u.status === 'disabled' ? `<button class="btn btn-success" onclick="enableUser(${u.id})">启用</button>` : ''}
+                            ${u.role === 'member' ? `<button class="btn btn-info" onclick="promoteUser(${u.id})" style="margin-left:4px;">升为管理员</button>` : ''}
+                            ${u.role === 'admin' ? `<button class="btn btn-warning" onclick="demoteUser(${u.id})" style="margin-left:4px;">降为成员</button>` : ''}
+                            <button class="btn btn-danger" onclick="deleteUser(${u.id})" style="margin-left:4px;">删除</button>
+                        ` : '<span style="color:#999;">当前用户</span>'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderPendingUsers() {
+            const pending = allUsers.filter(u => u.status === 'pending');
+            document.getElementById('pendingCount').textContent = pending.length;
+            const tbody = document.getElementById('pendingTable');
+            tbody.innerHTML = pending.length ? pending.map(u => `
+                <tr>
+                    <td>${u.id}</td>
+                    <td>${u.username}</td>
+                    <td>${u.email}</td>
+                    <td>${u.created_at ? new Date(u.created_at).toLocaleString('zh-CN') : '-'}</td>
+                    <td>
+                        <button class="btn btn-success" onclick="approveUser(${u.id})">通过</button>
+                        <button class="btn btn-danger" onclick="rejectUser(${u.id})" style="margin-left:4px;">拒绝</button>
+                    </td>
+                </tr>
+            `).join('') : '<tr><td colspan="5" style="color:#999;text-align:center;">暂无待审核用户</td></tr>';
+        }
+
+        function showTab(tab) {
+            document.getElementById('usersTab').style.display = tab === 'users' ? '' : 'none';
+            document.getElementById('pendingTab').style.display = tab === 'pending' ? '' : 'none';
+            document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i === 0 && tab === 'users') || (i === 1 && tab === 'pending')));
+        }
+
+        async function approveUser(userId) {
+            const res = await api(`/users/${userId}/approve`, { method: 'POST' });
+            if (res.ok) {
+                loadUsers();
+            } else {
+                const data = await res.json();
+                alert(data.error || '操作失败');
+            }
+        }
+
+        async function rejectUser(userId) {
+            if (!confirm('确定要拒绝该用户吗？此操作将删除该用户。')) return;
+            const res = await api(`/users/${userId}/reject`, { method: 'POST' });
+            if (res.ok) {
+                loadUsers();
+            } else {
+                const data = await res.json();
+                alert(data.error || '操作失败');
+            }
+        }
+
+        async function disableUser(userId) {
+            const res = await api(`/users/${userId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ status: 'disabled' })
+            });
+            if (res.ok) {
+                loadUsers();
+            } else {
+                const data = await res.json();
+                alert(data.error || '操作失败');
+            }
+        }
+
+        async function enableUser(userId) {
+            const res = await api(`/users/${userId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ status: 'active' })
+            });
+            if (res.ok) {
+                loadUsers();
+            } else {
+                const data = await res.json();
+                alert(data.error || '操作失败');
+            }
+        }
+
+        async function promoteUser(userId) {
+            if (!confirm('确定要将该用户提升为管理员吗？')) return;
+            const res = await api(`/users/${userId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ role: 'admin' })
+            });
+            if (res.ok) {
+                loadUsers();
+            } else {
+                const data = await res.json();
+                alert(data.error || '操作失败');
+            }
+        }
+
+        async function demoteUser(userId) {
+            if (!confirm('确定要取消该用户的管理员权限吗？')) return;
+            const res = await api(`/users/${userId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ role: 'member' })
+            });
+            if (res.ok) {
+                loadUsers();
+            } else {
+                const data = await res.json();
+                alert(data.error || '操作失败');
+            }
+        }
+
+        async function deleteUser(userId) {
+            if (!confirm('确定要删除该用户吗？此操作不可撤销。')) return;
+            const res = await api(`/users/${userId}`, { method: 'DELETE' });
+            if (res.ok) {
+                loadUsers();
+            } else {
+                const data = await res.json();
+                alert(data.error || '操作失败');
+            }
+        }
+
+        loadUsers();
+    </script>
+</body>
+</html>

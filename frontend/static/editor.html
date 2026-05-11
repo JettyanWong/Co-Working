@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文档 - Coworking</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/monokai.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        .header { background: #4a90d9; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 18px; }
+        .header a { color: white; text-decoration: none; }
+        .header-actions { display: flex; align-items: center; gap: 10px; }
+        .toolbar { background: #f8f8f8; padding: 10px 20px; border-bottom: 1px solid #ddd; display: flex; gap: 10px; align-items: center; }
+        .toolbar.edit-mode { background: #fff3cd; }
+        .btn { padding: 6px 12px; background: #4a90d9; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .btn:hover { background: #3a7fc9; }
+        .btn-outline { background: white; color: #4a90d9; border: 1px solid #4a90d9; }
+        .btn-outline:hover { background: #e3f2fd; }
+        .btn-sm { padding: 3px 8px; font-size: 11px; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #5a6268; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .doc-container { max-width: 900px; margin: 20px auto; }
+        .cell { background: white; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 12px; overflow: hidden; }
+        .cell-header { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: #fafafa; border-bottom: 1px solid #eee; font-size: 11px; color: #999; }
+        .cell-header .cell-type-badge { font-weight: bold; text-transform: uppercase; }
+        .cell-header .cell-type-badge.markdown { color: #4a90d9; }
+        .cell-header .cell-type-badge.code { color: #28a745; }
+        .cell-header .cell-type-badge.image { color: #e83e8c; }
+        /* Image cell styles */
+        .cell-view.image { text-align: center; }
+        .cell-view.image img { max-width: 100%; max-height: 500px; border-radius: 4px; }
+        .cell-editor .image-upload-area { border: 2px dashed #ddd; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; }
+        .cell-editor .image-upload-area:hover { border-color: #e83e8c; background: #fdf2f8; }
+        .cell-editor .image-preview { margin-top: 10px; text-align: center; }
+        .cell-editor .image-preview img { max-width: 100%; max-height: 300px; border-radius: 4px; }
+        .cell-editor .image-url-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 8px; font-size: 13px; }
+        /* Table editor */
+        .table-editor-container { margin-top: 10px; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
+        .table-editor-toolbar { background: #f5f5f5; padding: 6px 10px; display: flex; gap: 6px; align-items: center; border-bottom: 1px solid #e0e0e0; }
+        .table-editor-toolbar button { padding: 3px 10px; font-size: 12px; border: 1px solid #ccc; background: white; border-radius: 3px; cursor: pointer; color: #333; }
+        .table-editor-toolbar button:hover { background: #e8e8e8; }
+        .table-editor-toolbar button.danger { color: #dc3545; border-color: #dc3545; }
+        .table-editor-toolbar button.danger:hover { background: #fff5f5; }
+        .table-editor-toolbar span { font-size: 11px; color: #888; margin-left: auto; }
+        .editable-table { width: 100%; border-collapse: collapse; }
+        .editable-table th, .editable-table td { border: 1px solid #ddd; padding: 0; position: relative; }
+        .editable-table th { background: #f8f8f8; }
+        .editable-table .cell-content { padding: 6px 8px; min-width: 60px; min-height: 24px; outline: none; font-size: 13px; }
+        .editable-table .cell-content:focus { background: #e3f2fd; }
+        .editable-table .del-row-btn, .editable-table .del-col-btn { position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; font-size: 10px; line-height: 14px; text-align: center; background: #ff6b6b; color: white; border: none; border-radius: 50%; cursor: pointer; opacity: 0; transition: opacity 0.15s; }
+        .editable-table th:hover .del-col-btn, .editable-table td:hover .del-row-btn { opacity: 1; }
+        .editable-table .del-row-btn:hover, .editable-table .del-col-btn:hover { background: #dc3545; }
+        .cell-actions { display: flex; gap: 4px; }
+        .cell-actions button { padding: 2px 6px; font-size: 10px; border: 1px solid #ddd; background: white; border-radius: 3px; cursor: pointer; color: #666; }
+        .cell-actions button:hover { background: #f0f0f0; }
+        .cell-body { padding: 15px; }
+        /* View mode */
+        .cell-view { cursor: pointer; min-height: 30px; }
+        .cell-view:hover { background: #fafafa; border-radius: 4px; }
+        .cell-view.markdown { line-height: 1.7; }
+        .cell-view.markdown h1, .cell-view.markdown h2, .cell-view.markdown h3 { margin: 8px 0 4px; }
+        .cell-view.markdown h1 { font-size: 1.6em; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+        .cell-view.markdown h2 { font-size: 1.3em; }
+        .cell-view.markdown h3 { font-size: 1.1em; }
+        .cell-view.markdown p { margin: 4px 0; }
+        .cell-view.markdown ul, .cell-view.markdown ol { padding-left: 20px; margin: 4px 0; }
+        .cell-view.markdown li { margin: 2px 0; }
+        .cell-view.markdown code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
+        .cell-view.markdown pre { background: #2d2d2d; color: #f8f8f2; padding: 12px; border-radius: 4px; overflow-x: auto; margin: 8px 0; }
+        .cell-view.markdown pre code { background: none; padding: 0; color: inherit; }
+        .cell-view.markdown blockquote { border-left: 3px solid #4a90d9; padding-left: 12px; margin: 8px 0; color: #666; }
+        .cell-view.markdown table { border-collapse: collapse; margin: 8px 0; }
+        .cell-view.markdown th, .cell-view.markdown td { border: 1px solid #ddd; padding: 6px 10px; }
+        .cell-view.markdown th { background: #f8f8f8; }
+        .cell-view.code pre { background: #2d2d2d; color: #f8f8f2; padding: 12px; border-radius: 4px; overflow-x: auto; margin: 0; font-family: 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 1.5; }
+        /* Edit mode */
+        .cell-editor textarea { width: 100%; min-height: 80px; padding: 10px; border: 2px solid #4a90d9; border-radius: 4px; font-family: inherit; font-size: 14px; line-height: 1.6; resize: vertical; outline: none; }
+        .cell-editor .CodeMirror { border: 2px solid #28a745; border-radius: 4px; height: auto; min-height: 80px; }
+        .cell-edit-hint { font-size: 10px; color: #999; margin-top: 4px; }
+        /* Add cell area */
+        .add-cell-area { text-align: center; padding: 15px; }
+        .add-cell-area button { margin: 0 4px; }
+        .status-bar { font-size: 12px; color: #888; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><a href="/static/index.html">←</a> <span id="docTitle">文档</span></h1>
+        <div class="header-actions">
+            <span id="status" class="status-bar"></span>
+            <span id="onlineUsers" style="font-size:12px;"></span>
+            <button id="editToggleBtn" class="btn btn-outline" onclick="toggleGlobalEdit()">编辑</button>
+            <button class="btn" onclick="saveDocument()">保存</button>
+            <a href="/static/index.html" class="btn btn-secondary">返回</a>
+        </div>
+    </div>
+
+    <div id="toolbar" class="toolbar hidden">
+        <span style="font-size:13px;color:#856404;">编辑模式</span>
+        <button class="btn btn-outline btn-sm" onclick="addCell('text')">+ 文本</button>
+        <button class="btn btn-outline btn-sm" onclick="addCell('code')">+ 代码</button>
+        <button class="btn btn-outline btn-sm" onclick="addCell('image')">+ 图片</button>
+        <button class="btn btn-outline btn-sm" onclick="insertTable()">📊 插入表格</button>
+        <button class="btn btn-sm" onclick="downloadDoc()">下载</button>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('imageInput').click()">🖼 上传图片</button>
+        <input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="uploadImage()">
+    </div>
+
+    <div class="doc-container">
+        <div id="cells-container"></div>
+        <div class="add-cell-area">
+            <button class="btn btn-outline" onclick="addCell('text')">+ 添加文本</button>
+            <button class="btn btn-outline" onclick="addCell('code')">+ 添加代码</button>
+            <button class="btn btn-outline" onclick="addCell('image')">+ 添加图片</button>
+            <button class="btn btn-outline" onclick="insertTable()">📊 插入表格</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/yjs@13.6.15/dist/yjs.min.js"></script>
+    <script src="/static/js/yjs-setup.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
+
+    <script>
+        const API_BASE = '/api';
+        let docId = null;
+        let docTitle = '';
+        let globalEditMode = false;
+        let cellData = {};  // { cellId: { type, content, dbId, editor, mode } }
+        let cellOrder = [];  // ordered cell IDs
+        let cellCounter = 0;
+        let socket = null;
+        let collab = null;
+        let ydoc = null;
+        let currentUser = null;
+        let saveTimer = null;
+        let documentProjectId = null;
+        let pendingImageCellId = null;
+
+        // Init
+        const urlParams = new URLSearchParams(window.location.search);
+        docId = urlParams.get('id');
+        if (!docId) { alert('No document ID'); window.location.href = '/static/index.html'; }
+
+        const userJson = localStorage.getItem('user');
+        if (!userJson) { window.location.href = '/login.html'; }
+        currentUser = JSON.parse(userJson);
+
+        // Configure marked
+        if (typeof marked !== 'undefined') {
+            marked.setOptions({ breaks: true, gfm: true });
+        }
+
+        async function loadDocument() {
+            setStatus('Loading...');
+            let res, data;
+            try {
+                res = await fetch(`${API_BASE}/documents/${docId}`);
+                if (!res.ok) { alert('Failed to load'); window.location.href = '/static/index.html'; return; }
+                data = await res.json();
+            } catch(e) {
+                alert('Failed to load document: ' + e.message);
+                return;
+            }
+            docTitle = data.document.title;
+            documentProjectId = data.document.project_id;
+            document.getElementById('docTitle').textContent = docTitle;
+            document.title = docTitle + ' - Coworking';
+
+            // Render cells immediately — do this first
+            if (data.cells && data.cells.length > 0) {
+                data.cells.forEach(c => addCellToUI(c, 'view'));
+            }
+            if (cellOrder.length === 0) {
+                addCell('text');
+            }
+            setStatus('Ready');
+
+            // Init collaboration features async (don't block rendering)
+            setTimeout(() => {
+                try {
+                    if (typeof Y !== 'undefined') {
+                        collab = getOrCreateCollab(docId);
+                        collab.connect();
+                        let yjsState = null;
+                        if (data.yjs_state) {
+                            const binary = atob(data.yjs_state);
+                            yjsState = new Uint8Array(binary.length);
+                            for (let i = 0; i < binary.length; i++) yjsState[i] = binary.charCodeAt(i);
+                        }
+                        collab.init(yjsState);
+                        ydoc = collab.getYDoc();
+                    }
+                } catch (e) { console.warn('Yjs init failed:', e); }
+                try {
+                    initSocketIO();
+                } catch (e) { console.warn('SocketIO init failed:', e); }
+            }, 100);
+        }
+
+        function initSocketIO() {
+            try {
+                socket = io();
+                socket.on('connect', () => setStatus('Connected'));
+                socket.on('disconnect', () => setStatus('Offline'));
+                socket.on('cell_add', (data) => {
+                    if (!cellData[data.cell_id]) addCellToUI({ cell_type: data.cell_type, content: '' }, 'view');
+                });
+                socket.on('cell_delete', (data) => {
+                    if (cellData[data.cell_id]) removeCell(data.cell_id);
+                });
+            } catch (e) { console.warn('SocketIO init failed:', e); }
+        }
+
+        function addCellToUI(cellInfo, initialMode) {
+            const cellId = 'cell_' + (cellCounter++);
+            const type = cellInfo.cell_type || 'text';
+            const content = cellInfo.content || '';
+            const mode = initialMode || (globalEditMode ? 'edit' : 'view');
+            const dbId = cellInfo.id || null;
+
+            const container = document.getElementById('cells-container');
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.id = cellId;
+            let typeLabel, typeClass;
+            if (type === 'code') { typeLabel = 'Code'; typeClass = 'code'; }
+            else if (type === 'image') { typeLabel = 'Image'; typeClass = 'image'; }
+            else { typeLabel = 'Markdown'; typeClass = 'markdown'; }
+            cell.innerHTML = `
+                <div class="cell-header">
+                    <span class="cell-type-badge ${typeClass}">${typeLabel}</span>
+                    <div class="cell-actions">
+                        <button onclick="moveCell('${cellId}', -1)" title="上移">↑</button>
+                        <button onclick="moveCell('${cellId}', 1)" title="下移">↓</button>
+                        <button onclick="deleteCell('${cellId}')" title="删除">×</button>
+                    </div>
+                </div>
+                <div class="cell-body" id="${cellId}_body"></div>
+            `;
+            container.appendChild(cell);
+
+            cellData[cellId] = { type, content, dbId, editor: null, mode };
+            cellOrder.push(cellId);
+
+            if (mode === 'edit') {
+                showEditMode(cellId);
+            } else {
+                showViewMode(cellId);
+            }
+        }
+
+        function showViewMode(cellId) {
+            const info = cellData[cellId];
+            if (!info) return;
+            info.mode = 'view';
+            const body = document.getElementById(cellId + '_body');
+            if (!body) return;
+
+            // Destroy editor if exists
+            if (info.editor) {
+                if (info.type === 'code' && info.editor.getWrapperElement) {
+                    const wrapper = info.editor.getWrapperElement();
+                    if (wrapper && wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+                }
+                info.editor = null;
+            }
+
+            body.innerHTML = '';
+            const viewDiv = document.createElement('div');
+            let viewClass = 'markdown';
+            if (info.type === 'code') viewClass = 'code';
+            else if (info.type === 'image') viewClass = 'image';
+            viewDiv.className = 'cell-view ' + viewClass;
+            viewDiv.ondblclick = () => showEditMode(cellId);
+
+            if (info.type === 'code') {
+                const escaped = escapeHtml(info.content || '');
+                viewDiv.innerHTML = `<pre><code>${escaped || '&nbsp;'}</code></pre>`;
+            } else if (info.type === 'image') {
+                const url = info.content || '';
+                if (url) {
+                    viewDiv.innerHTML = `<img src="${escapeHtml(url)}" alt="Image" onerror="this.parentElement.innerHTML='<p style=\\'color:#999;text-align:center;padding:20px;\\'>图片加载失败</p>'">`;
+                } else {
+                    viewDiv.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">空白图片，点击编辑以上传</p>';
+                }
+            } else {
+                viewDiv.innerHTML = renderMarkdown(info.content || '');
+            }
+
+            body.appendChild(viewDiv);
+        }
+
+        function showEditMode(cellId) {
+            const info = cellData[cellId];
+            if (!info) return;
+            info.mode = 'edit';
+            const body = document.getElementById(cellId + '_body');
+            if (!body) return;
+            body.innerHTML = '';
+
+            const editDiv = document.createElement('div');
+            editDiv.className = 'cell-editor';
+
+            if (info.type === 'code') {
+                const textarea = document.createElement('textarea');
+                editDiv.appendChild(textarea);
+                const cm = CodeMirror.fromTextArea(textarea, {
+                    mode: 'python',
+                    lineNumbers: true,
+                    lineWrapping: true,
+                    theme: 'monokai',
+                    value: info.content || ''
+                });
+                cm.setSize(null, Math.max(60, Math.min(400, (info.content || '').split('\n').length * 20 + 20)));
+                cm.on('blur', () => setTimeout(() => finishEdit(cellId), 150));
+                info.editor = cm;
+                setTimeout(() => cm.focus(), 50);
+            } else if (info.type === 'image') {
+                const uploadArea = document.createElement('div');
+                uploadArea.className = 'image-upload-area';
+                uploadArea.innerHTML = '<p style="margin:0;color:#999;">点击上传图片</p><p style="margin:5px 0 0;font-size:11px;color:#bbb;">或在下方的输入框中粘贴图片URL</p>';
+                uploadArea.onclick = () => {
+                    pendingImageCellId = cellId;
+                    document.getElementById('imageInput').click();
+                };
+                editDiv.appendChild(uploadArea);
+
+                const preview = document.createElement('div');
+                preview.className = 'image-preview';
+                if (info.content) {
+                    preview.innerHTML = `<img src="${escapeHtml(info.content)}" alt="Preview" onerror="this.style.display='none'">`;
+                }
+                editDiv.appendChild(preview);
+
+                const urlInput = document.createElement('input');
+                urlInput.type = 'text';
+                urlInput.className = 'image-url-input';
+                urlInput.placeholder = '图片URL（上传后自动填入，或手动粘贴）';
+                urlInput.value = info.content || '';
+                urlInput.addEventListener('input', () => {
+                    info.content = urlInput.value;
+                    if (urlInput.value) {
+                        preview.innerHTML = `<img src="${escapeHtml(urlInput.value)}" alt="Preview" onerror="this.style.display='none'">`;
+                    } else {
+                        preview.innerHTML = '';
+                    }
+                });
+                urlInput.addEventListener('blur', () => {
+                    if (pendingImageCellId === cellId) return;
+                    setTimeout(() => finishEdit(cellId), 150);
+                });
+                urlInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') { e.preventDefault(); finishEdit(cellId); }
+                });
+                editDiv.appendChild(urlInput);
+
+                info.editor = urlInput;
+                setTimeout(() => urlInput.focus(), 50);
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = info.content || '';
+                textarea.placeholder = '输入 Markdown 文本...';
+                textarea.addEventListener('blur', () => {
+                    setTimeout(() => {
+                        // Don't exit edit mode if focus moved to the table editor
+                        const activeEl = document.activeElement;
+                        const tableEditor = document.getElementById(cellId + '_table_editor');
+                        if (activeEl && tableEditor && tableEditor.contains(activeEl)) return;
+                        finishEdit(cellId);
+                    }, 150);
+                });
+                textarea.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') { e.preventDefault(); finishEdit(cellId); }
+                });
+                textarea.addEventListener('paste', (e) => {
+                    const clipboardData = e.clipboardData;
+                    if (!clipboardData) return;
+                    const text = clipboardData.getData('text/plain');
+                    const tableMd = pasteExcelToMarkdown(text);
+                    if (tableMd) {
+                        e.preventDefault();
+                        const start = textarea.selectionStart;
+                        const end = textarea.selectionEnd;
+                        textarea.value = textarea.value.substring(0, start) + tableMd + textarea.value.substring(end);
+                        textarea.selectionStart = textarea.selectionEnd = start + tableMd.length;
+                        info.content = textarea.value;
+                        setTimeout(() => refreshTableEditor(cellId), 100);
+                    }
+                });
+                textarea.addEventListener('input', () => {
+                    info.content = textarea.value;
+                    // Only refresh if user is typing in the textarea (not programmatic change)
+                    if (document.activeElement === textarea) refreshTableEditor(cellId);
+                });
+                editDiv.appendChild(textarea);
+                info.editor = textarea;
+
+                // Table editor container
+                const tableEditorContainer = document.createElement('div');
+                tableEditorContainer.className = 'table-editor-container';
+                tableEditorContainer.id = cellId + '_table_editor';
+                tableEditorContainer.style.display = 'none';
+                editDiv.appendChild(tableEditorContainer);
+
+                setTimeout(() => {
+                    textarea.focus();
+                    refreshTableEditor(cellId);
+                }, 50);
+            }
+
+            const hint = document.createElement('div');
+            hint.className = 'cell-edit-hint';
+            if (info.type === 'image') {
+                hint.innerHTML = '点击上方区域上传图片，或粘贴URL | 点击外部区域完成编辑';
+            } else {
+                hint.innerHTML = 'Esc 或点击外部区域完成编辑 | <a href="#" onclick="event.preventDefault();document.getElementById(\'imageInput\').click()" style="color:#4a90d9;">上传图片</a>';
+            }
+            editDiv.appendChild(hint);
+
+            body.appendChild(editDiv);
+        }
+
+        function finishEdit(cellId) {
+            const info = cellData[cellId];
+            if (!info || info.mode !== 'edit') return;
+            // Read content from editor
+            if (info.editor) {
+                if (info.type === 'code' && info.editor.getValue) {
+                    info.content = info.editor.getValue();
+                } else if (info.editor.value !== undefined) {
+                    info.content = info.editor.value;
+                }
+            }
+            showViewMode(cellId);
+            autoSave();
+        }
+
+        function addCell(type) {
+            addCellToUI({ cell_type: type, content: '' }, 'edit');
+            const newCellId = cellOrder[cellOrder.length - 1];
+            if (socket && socket.connected) {
+                socket.emit('cell_add', { doc_id: docId, cell_id: newCellId, cell_type: type });
+            }
+        }
+
+        function deleteCell(cellId) {
+            if (!cellData[cellId]) return;
+            if (cellData[cellId].editor) {
+                if (cellData[cellId].type === 'code' && cellData[cellId].editor.getWrapperElement) {
+                    const w = cellData[cellId].editor.getWrapperElement();
+                    if (w && w.parentNode) w.parentNode.removeChild(w);
+                }
+            }
+            const el = document.getElementById(cellId);
+            if (el) el.remove();
+            delete cellData[cellId];
+            cellOrder = cellOrder.filter(id => id !== cellId);
+            if (socket && socket.connected) {
+                socket.emit('cell_delete', { doc_id: docId, cell_id: cellId });
+            }
+            autoSave();
+        }
+
+        function removeCell(cellId) {
+            if (cellData[cellId]) {
+                if (cellData[cellId].editor && cellData[cellId].type === 'code') {
+                    const w = cellData[cellId].editor.getWrapperElement();
+                    if (w && w.parentNode) w.parentNode.removeChild(w);
+                }
+            }
+            const el = document.getElementById(cellId);
+            if (el) el.remove();
+            delete cellData[cellId];
+            cellOrder = cellOrder.filter(id => id !== cellId);
+        }
+
+        function moveCell(cellId, direction) {
+            const idx = cellOrder.indexOf(cellId);
+            if (idx < 0) return;
+            const newIdx = idx + direction;
+            if (newIdx < 0 || newIdx >= cellOrder.length) return;
+            cellOrder.splice(idx, 1);
+            cellOrder.splice(newIdx, 0, cellId);
+            // Reorder DOM
+            const container = document.getElementById('cells-container');
+            const el = document.getElementById(cellId);
+            const ref = document.getElementById(cellOrder[newIdx + (direction > 0 ? 1 : 0)]);
+            if (direction > 0 && ref && ref.nextSibling) {
+                container.insertBefore(el, ref.nextSibling);
+            } else if (direction > 0) {
+                container.appendChild(el);
+            } else if (ref) {
+                container.insertBefore(el, ref);
+            }
+            autoSave();
+        }
+
+        function toggleGlobalEdit() {
+            globalEditMode = !globalEditMode;
+            const toolbar = document.getElementById('toolbar');
+            const btn = document.getElementById('editToggleBtn');
+            if (globalEditMode) {
+                toolbar.classList.remove('hidden');
+                btn.textContent = '预览';
+                btn.className = 'btn btn-success';
+                // Switch all cells to edit mode
+                cellOrder.forEach(id => showEditMode(id));
+            } else {
+                toolbar.classList.add('hidden');
+                btn.textContent = '编辑';
+                btn.className = 'btn btn-outline';
+                // Switch all cells to view mode
+                cellOrder.forEach(id => {
+                    if (cellData[id].mode === 'edit') finishEdit(id);
+                });
+            }
+        }
+
+        function getCellsData() {
+            const cells = [];
+            cellOrder.forEach((cellId, index) => {
+                const info = cellData[cellId];
+                if (!info) return;
+                cells.push({
+                    id: info.dbId,
+                    cell_type: info.type,
+                    cell_order: index,
+                    content: info.content
+                });
+            });
+            return cells;
+        }
+
+        async function saveDocument() {
+            setStatus('Saving...');
+            const body = { cells: getCellsData() };
+            if (collab) {
+                try {
+                    const state = collab.getState();
+                    let binary = '';
+                    for (let i = 0; i < state.length; i++) binary += String.fromCharCode(state[i]);
+                    body.yjs_state = btoa(binary);
+                } catch (e) {}
+            }
+            const res = await fetch(`${API_BASE}/documents/${docId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (res.ok) {
+                setStatus('Saved');
+                setTimeout(() => setStatus('Ready'), 2000);
+            } else {
+                setStatus('Save failed');
+            }
+        }
+
+        function autoSave() {
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(() => saveDocument(), 500);
+        }
+
+        function renderMarkdown(text) {
+            if (!text) return '';
+            if (typeof marked !== 'undefined') {
+                return marked.parse(text);
+            }
+            return escapeHtml(text).replace(/\n/g, '<br>');
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function setStatus(msg) {
+            document.getElementById('status').textContent = msg;
+        }
+
+        function downloadDoc() {
+            window.open(`${API_BASE}/documents/${docId}/download`);
+        }
+
+        function insertTable(rows, cols) {
+            const input = prompt('请输入行数和列数（格式：行,列）', (rows || '4') + ',' + (cols || '3'));
+            if (!input) return;
+            const parts = input.split(',');
+            rows = parseInt(parts[0]) || 4;
+            cols = parseInt(parts[1]) || 3;
+            if (rows < 1 || cols < 1) return;
+            let md = '\n|';
+            for (let c = 0; c < cols; c++) md += ` 列${c + 1} |`;
+            md += '\n|';
+            for (let c = 0; c < cols; c++) md += ' --- |';
+            md += '\n';
+            for (let r = 0; r < rows; r++) {
+                md += '|';
+                for (let c = 0; c < cols; c++) md += '  |';
+                md += '\n';
+            }
+            // Insert into active text cell
+            for (const cellId of cellOrder) {
+                const info = cellData[cellId];
+                if (info && info.mode === 'edit' && info.type === 'text' && info.editor && info.editor.tagName === 'TEXTAREA') {
+                    const ta = info.editor;
+                    const start = ta.selectionStart;
+                    ta.value = ta.value.substring(0, start) + md + ta.value.substring(ta.selectionEnd);
+                    ta.focus();
+                    ta.selectionStart = ta.selectionEnd = start + 1;
+                    info.content = ta.value;
+                    refreshTableEditor(cellId);
+                    autoSave();
+                    return;
+                }
+            }
+            // No active text cell — create one
+            addCell('text');
+        }
+
+        function pasteExcelToMarkdown(text) {
+            // Detect Excel-style paste: tab-separated values with newlines
+            const lines = text.trim().split(/\r?\n/);
+            if (lines.length < 2) return null;
+            const hasTabs = lines.some(l => l.includes('\t'));
+            if (!hasTabs) return null;
+            const rows = lines.map(l => l.split('\t'));
+            const colCount = Math.max(...rows.map(r => r.length));
+            let md = '\n|';
+            for (let c = 0; c < colCount; c++) md += ` ${rows[0][c] || ''} |`;
+            md += '\n|';
+            for (let c = 0; c < colCount; c++) md += ' --- |';
+            for (let r = 1; r < rows.length; r++) {
+                md += '\n|';
+                for (let c = 0; c < colCount; c++) md += ` ${rows[r][c] || ''} |`;
+            }
+            return md + '\n';
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveDocument();
+            }
+        });
+
+        window.addEventListener('beforeunload', () => {
+            clearTimeout(saveTimer);
+            const cells = getCellsData();
+            const body = JSON.stringify({ cells });
+            fetch(`${API_BASE}/documents/${docId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: body,
+                keepalive: true
+            });
+            if (socket && socket.connected) {
+                socket.emit('leave_doc', { doc_id: docId });
+                socket.disconnect();
+            }
+            if (collab) collab.disconnect();
+        });
+
+        async function uploadImage() {
+            const fileInput = document.getElementById('imageInput');
+            const file = fileInput.files[0];
+            if (!file) { pendingImageCellId = null; return; }
+            setStatus('Uploading image...');
+            const formData = new FormData();
+            formData.append('file', file);
+            if (documentProjectId) formData.append('project_id', documentProjectId);
+            try {
+                const res = await fetch(`${API_BASE}/files`, { method: 'POST', body: formData });
+                if (res.ok) {
+                    const data = await res.json();
+                    const url = `${API_BASE}/files/${data.file.id}/view`;
+                    const md = `![${data.file.filename}](${url})`;
+
+                    let inserted = false;
+
+                    // Use pending cell ID if set
+                    if (pendingImageCellId && cellData[pendingImageCellId]) {
+                        const info = cellData[pendingImageCellId];
+                        info.content = url;
+                        if (info.editor && info.editor.tagName === 'INPUT') {
+                            info.editor.value = url;
+                        }
+                        finishEdit(pendingImageCellId);
+                        inserted = true;
+                    }
+                    pendingImageCellId = null;
+
+                    // Fallback: find any image cell (even in view mode)
+                    if (!inserted) {
+                        for (const cellId of cellOrder) {
+                            const info = cellData[cellId];
+                            if (info && info.type === 'image' && !info.content) {
+                                info.content = url;
+                                showViewMode(cellId);
+                                inserted = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Fallback: insert markdown into active text cell
+                    if (!inserted) {
+                        for (const cellId of cellOrder) {
+                            const info = cellData[cellId];
+                            if (info && info.mode === 'edit' && info.type === 'text' && info.editor && info.editor.tagName === 'TEXTAREA') {
+                                const ta = info.editor;
+                                const start = ta.selectionStart;
+                                const end = ta.selectionEnd;
+                                ta.value = ta.value.substring(0, start) + md + ta.value.substring(end);
+                                ta.focus();
+                                ta.selectionStart = ta.selectionEnd = start + md.length;
+                                info.content = ta.value;
+                                inserted = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!inserted) {
+                        // Auto-create an image cell
+                        addCellToUI({ cell_type: 'image', content: url }, 'view');
+                    }
+                    autoSave();
+                    setStatus('Image uploaded');
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Upload failed');
+                    setStatus('Ready');
+                }
+            } catch (e) {
+                alert('Upload failed');
+                setStatus('Ready');
+            }
+            fileInput.value = '';
+            pendingImageCellId = null;
+        }
+
+        // ---- Table Editor Functions ----
+
+        function parseMarkdownTable(text) {
+            if (!text) return null;
+            const lines = text.split(/\r?\n/);
+            for (let i = 0; i < lines.length; i++) {
+                const headerLine = lines[i];
+                if (!headerLine || !headerLine.includes('|')) continue;
+                if (i + 1 >= lines.length) continue;
+                const sepLine = lines[i + 1];
+                // Separator: only |, -, :, whitespace, and must contain at least one -
+                if (!/^[\s|:-]+$/.test(sepLine) || !/-/.test(sepLine)) continue;
+                // Parse header: remove first/last empty from split (leading/trailing |)
+                const headers = headerLine.split('|').map(s => s.trim());
+                if (headers.length > 1 && headers[0] === '') headers.shift();
+                if (headers.length > 1 && headers[headers.length - 1] === '') headers.pop();
+                if (headers.length === 0) continue;
+                // Parse rows — keep empty rows, just strip leading/trailing empties
+                const rows = [];
+                for (let j = i + 2; j < lines.length; j++) {
+                    const rowLine = lines[j];
+                    if (!rowLine.includes('|')) break;
+                    const cells = rowLine.split('|').map(s => s.trim());
+                    if (cells.length > 1 && cells[0] === '') cells.shift();
+                    if (cells.length > 1 && cells[cells.length - 1] === '') cells.pop();
+                    rows.push(cells);
+                }
+                return { headers, rows, startLine: i, endLine: i + 1 + rows.length };
+            }
+            return null;
+        }
+
+        function tableDataToMarkdown(headers, rows) {
+            let md = '\n| ' + headers.join(' | ') + ' |\n';
+            md += '| ' + headers.map(() => '---').join(' | ') + ' |\n';
+            for (const row of rows) {
+                md += '| ' + row.join(' | ') + ' |\n';
+            }
+            return md;
+        }
+
+        function refreshTableEditor(cellId) {
+            const info = cellData[cellId];
+            if (!info || info.type !== 'text' || info.mode !== 'edit') return;
+            const container = document.getElementById(cellId + '_table_editor');
+            if (!container) return;
+            const text = info.editor && info.editor.value !== undefined ? info.editor.value : info.content;
+            const tableData = parseMarkdownTable(text || '');
+            if (!tableData) {
+                container.style.display = 'none';
+                container.innerHTML = '';
+                return;
+            }
+            container.style.display = 'block';
+            renderEditableTable(container, tableData, cellId);
+        }
+
+        function renderEditableTable(container, tableData, cellId) {
+            const { headers, rows } = tableData;
+            container.innerHTML = `
+                <div class="table-editor-toolbar">
+                    <button onclick="addTableRow('${cellId}')">+ 添加行</button>
+                    <button onclick="addTableCol('${cellId}')">+ 添加列</button>
+                    <button class="danger" onclick="deleteLastTableRow('${cellId}')">- 删除最后行</button>
+                    <button class="danger" onclick="deleteLastTableCol('${cellId}')">- 删除最后列</button>
+                    <span>表格编辑器 — 点击单元格直接编辑</span>
+                </div>
+                <table class="editable-table">
+                    <thead>
+                        <tr>
+                            ${headers.map((h, ci) => `<th>
+                                <div class="cell-content" contenteditable="true" data-col="${ci}" data-row="-1" oninput="syncTableCell('${cellId}')" onfocus="this.closest('th').style.background='#fff3cd'" onblur="this.closest('th').style.background=''">${escapeHtml(h)}</div>
+                                <button class="del-col-btn" onclick="deleteTableCol('${cellId}', ${ci})" title="删除列">×</button>
+                            </th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map((row, ri) => `<tr>
+                            ${row.map((cell, ci) => `<td>
+                                <div class="cell-content" contenteditable="true" data-col="${ci}" data-row="${ri}" oninput="syncTableCell('${cellId}')" onfocus="this.closest('td').style.background='#fff3cd'" onblur="this.closest('td').style.background=''">${escapeHtml(cell)}</div>
+                                ${ci === row.length - 1 ? `<button class="del-row-btn" onclick="deleteTableRow('${cellId}', ${ri})" title="删除行">×</button>` : ''}
+                            </td>`).join('')}
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function readEditableTable(cellId) {
+            const container = document.getElementById(cellId + '_table_editor');
+            if (!container) return null;
+            const table = container.querySelector('.editable-table');
+            if (!table) return null;
+            const headers = [];
+            table.querySelectorAll('thead .cell-content').forEach(el => {
+                headers.push(el.textContent.trim());
+            });
+            const rows = [];
+            table.querySelectorAll('tbody tr').forEach(tr => {
+                const row = [];
+                tr.querySelectorAll('.cell-content').forEach(el => {
+                    row.push(el.textContent.trim());
+                });
+                if (row.length > 0) rows.push(row);
+            });
+            return { headers, rows };
+        }
+
+        function syncTableCell(cellId) {
+            const info = cellData[cellId];
+            if (!info || !info.editor || info.editor.tagName !== 'TEXTAREA') return;
+            const tableData = readEditableTable(cellId);
+            if (!tableData) return;
+            const md = tableDataToMarkdown(tableData.headers, tableData.rows);
+            const oldText = info.editor.value;
+            const oldTable = parseMarkdownTable(oldText);
+            if (!oldTable) return;
+            const lines = oldText.split(/\r?\n/);
+            const before = lines.slice(0, oldTable.startLine).join('\n');
+            const after = lines.slice(oldTable.endLine + 1).join('\n');
+            info.editor.value = before + md + (after ? '\n' + after : '');
+            info.content = info.editor.value;
+            autoSave();
+        }
+
+        function syncFullTable(cellId) {
+            const info = cellData[cellId];
+            if (!info || !info.editor || info.editor.tagName !== 'TEXTAREA') return;
+            const tableData = readEditableTable(cellId);
+            if (!tableData) return;
+            const md = tableDataToMarkdown(tableData.headers, tableData.rows);
+            const oldText = info.editor.value;
+            const oldTable = parseMarkdownTable(oldText);
+            if (!oldTable) return;
+            const lines = oldText.split(/\r?\n/);
+            const before = lines.slice(0, oldTable.startLine).join('\n');
+            const after = lines.slice(oldTable.endLine + 1).join('\n');
+            info.editor.value = before + md + (after ? '\n' + after : '');
+            info.content = info.editor.value;
+            refreshTableEditor(cellId);
+            autoSave();
+        }
+
+        function addTableRow(cellId) {
+            const tableData = readEditableTable(cellId);
+            if (!tableData) return;
+            const newRow = tableData.headers.map(() => '');
+            tableData.rows.push(newRow);
+            const md = tableDataToMarkdown(tableData.headers, tableData.rows);
+            replaceTableInTextarea(cellId, md);
+            refreshTableEditor(cellId);
+            autoSave();
+        }
+
+        function addTableCol(cellId) {
+            const tableData = readEditableTable(cellId);
+            if (!tableData) return;
+            tableData.headers.push('新列');
+            tableData.rows.forEach(r => r.push(''));
+            const md = tableDataToMarkdown(tableData.headers, tableData.rows);
+            replaceTableInTextarea(cellId, md);
+            refreshTableEditor(cellId);
+            autoSave();
+        }
+
+        function deleteTableRow(cellId, rowIdx) {
+            const tableData = readEditableTable(cellId);
+            if (!tableData || tableData.rows.length <= 1) return;
+            tableData.rows.splice(rowIdx, 1);
+            const md = tableDataToMarkdown(tableData.headers, tableData.rows);
+            replaceTableInTextarea(cellId, md);
+            refreshTableEditor(cellId);
+            autoSave();
+        }
+
+        function deleteLastTableRow(cellId) {
+            const tableData = readEditableTable(cellId);
+            if (!tableData || tableData.rows.length <= 1) return;
+            tableData.rows.pop();
+            const md = tableDataToMarkdown(tableData.headers, tableData.rows);
+            replaceTableInTextarea(cellId, md);
+            refreshTableEditor(cellId);
+            autoSave();
+        }
+
+        function deleteTableCol(cellId, colIdx) {
+            const tableData = readEditableTable(cellId);
+            if (!tableData || tableData.headers.length <= 1) return;
+            tableData.headers.splice(colIdx, 1);
+            tableData.rows.forEach(r => r.splice(colIdx, 1));
+            const md = tableDataToMarkdown(tableData.headers, tableData.rows);
+            replaceTableInTextarea(cellId, md);
+            refreshTableEditor(cellId);
+            autoSave();
+        }
+
+        function deleteLastTableCol(cellId) {
+            const tableData = readEditableTable(cellId);
+            if (!tableData || tableData.headers.length <= 1) return;
+            tableData.headers.pop();
+            tableData.rows.forEach(r => r.pop());
+            const md = tableDataToMarkdown(tableData.headers, tableData.rows);
+            replaceTableInTextarea(cellId, md);
+            refreshTableEditor(cellId);
+            autoSave();
+        }
+
+        function replaceTableInTextarea(cellId, newMd) {
+            const info = cellData[cellId];
+            if (!info || !info.editor || info.editor.tagName !== 'TEXTAREA') return;
+            const oldText = info.editor.value;
+            const oldTable = parseMarkdownTable(oldText);
+            if (!oldTable) return;
+            const lines = oldText.split(/\r?\n/);
+            const before = lines.slice(0, oldTable.startLine).join('\n');
+            const after = lines.slice(oldTable.endLine + 1).join('\n');
+            info.editor.value = before + newMd + (after ? '\n' + after : '');
+            info.content = info.editor.value;
+        }
+
+        loadDocument();
+    </script>
+</body>
+</html>

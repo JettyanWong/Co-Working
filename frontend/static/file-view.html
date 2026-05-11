@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件查看 - Coworking</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        .header { background: #4a90d9; color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header a { color: white; text-decoration: none; }
+        .container { max-width: 1000px; margin: 20px auto; padding: 0 20px; }
+        .file-preview { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 20px; }
+        .file-preview img { max-width: 100%; border-radius: 4px; display: block; margin: 0 auto; }
+        .file-preview pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; font-size: 13px; line-height: 1.5; }
+        .file-preview iframe { width: 100%; height: 80vh; border: none; border-radius: 4px; }
+        .file-info { margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #eee; color: #666; font-size: 13px; }
+        .file-info strong { color: #333; }
+        .actions { display: flex; gap: 8px; margin-top: 15px; }
+        .btn { padding: 8px 16px; background: #4a90d9; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; text-decoration: none; display: inline-block; }
+        .btn:hover { background: #3a7fc9; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #5a6268; }
+        .loading { text-align: center; padding: 40px; color: #999; }
+        .error { text-align: center; padding: 40px; color: #dc3545; }
+        .markdown-body { font-size: 15px; line-height: 1.7; color: #333; }
+        .markdown-body h1 { font-size: 1.8em; margin: 0.6em 0 0.4em; border-bottom: 2px solid #4a90d9; padding-bottom: 8px; }
+        .markdown-body h2 { font-size: 1.4em; margin: 0.6em 0 0.3em; border-bottom: 1px solid #ddd; padding-bottom: 6px; }
+        .markdown-body h3 { font-size: 1.2em; margin: 0.5em 0 0.2em; }
+        .markdown-body p { margin: 0.5em 0; }
+        .markdown-body ul, .markdown-body ol { padding-left: 1.8em; margin: 0.4em 0; }
+        .markdown-body li { margin: 0.2em 0; }
+        .markdown-body pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; font-size: 13px; line-height: 1.5; }
+        .markdown-body code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; color: #c7254e; }
+        .markdown-body pre code { background: none; padding: 0; color: inherit; }
+        .markdown-body table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        .markdown-body th, .markdown-body td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+        .markdown-body th { background: #f5f5f5; font-weight: 600; }
+        .markdown-body blockquote { border-left: 4px solid #4a90d9; padding: 8px 16px; margin: 10px 0; background: #f8f9fa; color: #666; }
+        .markdown-body img { max-width: 100%; border-radius: 4px; }
+        .markdown-body a { color: #4a90d9; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1 style="font-size:18px;"><a href="#" onclick="history.back()">←</a> <span id="fileName">文件查看</span></h1>
+        <a href="/static/index.html">返回首页</a>
+    </div>
+    <div class="container">
+        <div id="content" class="loading">加载中...</div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+        const urlParams = new URLSearchParams(window.location.search);
+        const fileId = urlParams.get('id');
+
+        if (!fileId) {
+            document.getElementById('content').innerHTML = '<div class="error">缺少文件 ID</div>';
+        }
+
+        const userJson = localStorage.getItem('user');
+        if (!userJson) {
+            window.location.href = '/login.html';
+        }
+
+        async function loadFile() {
+            try {
+                const res = await fetch(`${API_BASE}/files/${fileId}/view`);
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        window.location.href = '/login.html';
+                        return;
+                    }
+                    document.getElementById('content').innerHTML = '<div class="error">无法加载文件（权限不足或文件不存在）</div>';
+                    return;
+                }
+
+                const contentType = res.headers.get('Content-Type') || '';
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+
+                // Get file info
+                let fileInfo = null;
+                try {
+                    const infoRes = await fetch(`${API_BASE}/projects`);
+                    const projectsData = await infoRes.json();
+                    for (const p of projectsData.projects || []) {
+                        try {
+                            const filesRes = await fetch(`${API_BASE}/projects/${p.id}/files`);
+                            if (filesRes.ok) {
+                                const filesData = await filesRes.json();
+                                const found = (filesData.files || []).find(f => f.id === parseInt(fileId));
+                                if (found) { fileInfo = found; break; }
+                            }
+                        } catch(e) {}
+                    }
+                } catch(e) {}
+
+                let infoHtml = '<div class="file-info">';
+                if (fileInfo) {
+                    infoHtml += `<strong>文件名：</strong>${fileInfo.filename} &nbsp;|&nbsp; `;
+                    infoHtml += `<strong>大小：</strong>${(fileInfo.size / 1024).toFixed(1)} KB &nbsp;|&nbsp; `;
+                    infoHtml += `<strong>上传者：</strong>${fileInfo.uploader || '-'}`;
+                }
+                infoHtml += '</div>';
+
+                let previewHtml = '';
+
+                const isMarkdown = contentType === 'text/markdown' || contentType.includes('text/markdown') ||
+                    (fileInfo && /\.(md|markdown)$/i.test(fileInfo.filename));
+
+                if (contentType.startsWith('image/')) {
+                    document.getElementById('fileName').textContent = fileInfo ? fileInfo.filename : '图片查看';
+                    previewHtml = `<img src="${url}" alt="${fileInfo ? fileInfo.filename : 'Image'}">`;
+                } else if (isMarkdown) {
+                    document.getElementById('fileName').textContent = fileInfo ? fileInfo.filename : 'Markdown 查看';
+                    const text = await blob.text();
+                    const rendered = marked.parse(text);
+                    previewHtml = `<div class="markdown-body">${rendered}</div>`;
+                } else if (contentType.startsWith('text/') || contentType.includes('javascript') || contentType.includes('json')) {
+                    document.getElementById('fileName').textContent = fileInfo ? fileInfo.filename : '文本查看';
+                    const text = await blob.text();
+                    previewHtml = `<pre>${escapeHtml(text)}</pre>`;
+                } else if (contentType === 'application/pdf') {
+                    document.getElementById('fileName').textContent = fileInfo ? fileInfo.filename : 'PDF查看';
+                    previewHtml = `<iframe src="${url}"></iframe>`;
+                } else {
+                    document.getElementById('fileName').textContent = fileInfo ? fileInfo.filename : '文件查看';
+                    previewHtml = `<div style="text-align:center;padding:40px;color:#666;">
+                        <p style="font-size:48px;margin-bottom:16px;">📄</p>
+                        <p>此文件类型不支持在线预览（${contentType}）</p>
+                    </div>`;
+                }
+
+                document.getElementById('content').innerHTML = `
+                    <div class="file-preview">
+                        ${infoHtml}
+                        ${previewHtml}
+                        <div class="actions">
+                            <a href="${url}" download="${fileInfo ? fileInfo.filename : 'file'}" class="btn btn-secondary">下载</a>
+                        </div>
+                    </div>`;
+            } catch(e) {
+                document.getElementById('content').innerHTML = '<div class="error">加载失败: ' + e.message + '</div>';
+            }
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        loadFile();
+    </script>
+</body>
+</html>

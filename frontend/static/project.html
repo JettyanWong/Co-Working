@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>项目 - Coworking</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        .header { background: #4a90d9; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 20px; }
+        .header a { color: white; text-decoration: none; }
+        .main { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
+        .card h2 { margin-bottom: 15px; color: #333; border-bottom: 2px solid #4a90d9; padding-bottom: 10px; }
+        .btn { padding: 8px 16px; background: #4a90d9; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .btn:hover { background: #3a7fc9; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f8f8f8; color: #666; }
+        .status { padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .status.pending { background: #fff3cd; color: #856404; }
+        .status.in_progress { background: #d1ecf1; color: #0c5460; }
+        .status.completed { background: #d4edda; color: #155724; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #666; }
+        .form-group input, .form-group textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 400px; max-width: 90%; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><a href="/static/index.html">←</a> <span id="projectName">项目</span></h1>
+        <a href="/static/index.html" style="color:white;">返回首页</a>
+    </div>
+
+    <div class="main">
+        <!-- Tasks Section -->
+        <div class="card">
+            <h2>任务</h2>
+            <button class="btn" onclick="showTaskModal()">+ 添加任务</button>
+            <table style="margin-top:15px;">
+                <thead>
+                    <tr><th>任务</th><th>状态</th><th>负责人</th><th>操作</th></tr>
+                </thead>
+                <tbody id="tasksTable"></tbody>
+            </table>
+        </div>
+
+        <!-- Documents Section -->
+        <div class="card">
+            <h2>文档</h2>
+            <button class="btn" onclick="showDocModal()">+ 创建文档</button>
+            <table style="margin-top:15px;">
+                <thead>
+                    <tr><th>标题</th><th>创建人</th><th>创建时间</th><th>操作</th></tr>
+                </thead>
+                <tbody id="documentsTable"></tbody>
+            </table>
+        </div>
+
+        <!-- Files Section -->
+        <div class="card">
+            <h2>文件</h2>
+            <input type="file" id="fileInput">
+            <button class="btn" onclick="uploadFile()" style="margin-top:10px;">上传</button>
+            <table style="margin-top:15px;">
+                <thead>
+                    <tr><th>文件名</th><th>大小</th><th>上传者</th><th>上传时间</th><th>最后编辑</th><th>操作</th></tr>
+                </thead>
+                <tbody id="filesTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Task Modal -->
+    <div id="taskModal" class="modal">
+        <div class="modal-content">
+            <h3>添加任务</h3>
+            <div class="form-group">
+                <label>任务名称</label>
+                <input type="text" id="taskTitle">
+            </div>
+            <div class="form-group">
+                <label>描述</label>
+                <textarea id="taskDesc" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label>负责人</label>
+                <select id="taskAssignee" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;">
+                    <option value="">不指定</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-danger" onclick="closeTaskModal()">取消</button>
+                <button class="btn" onclick="createTask()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Modal -->
+    <div id="docModal" class="modal">
+        <div class="modal-content">
+            <h3>创建文档</h3>
+            <div class="form-group">
+                <label>文档标题</label>
+                <input type="text" id="docTitle">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-danger" onclick="closeDocModal()">取消</button>
+                <button class="btn" onclick="createDocument()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+        let projectId = null;
+        let projectOwnerId = null;
+
+        // Login check
+        const userJson = localStorage.getItem('user');
+        if (!userJson) {
+            window.location.href = '/login.html';
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        projectId = urlParams.get('id');
+
+        if (!projectId) {
+            alert('No project ID');
+            window.location.href = '/static/index.html';
+        }
+
+        async function api(endpoint, options = {}) {
+            const res = await fetch(`${API_BASE}${endpoint}`, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...options.headers }
+            });
+            return res;
+        }
+
+        async function loadProject() {
+            const res = await api(`/projects/${projectId}`);
+            const data = await res.json();
+            projectOwnerId = data.project.owner_id;
+            document.getElementById('projectName').textContent = data.project.name;
+            document.title = data.project.name + ' - Coworking';
+            loadTasks();
+            loadDocuments();
+            loadFiles();
+        }
+
+        async function loadTasks() {
+            const res = await api(`/projects/${projectId}/tasks`);
+            const data = await res.json();
+            const tbody = document.getElementById('tasksTable');
+            const currentUid = getCurrentUserId();
+            tbody.innerHTML = data.tasks.map(t => {
+                const canComplete = (t.assignee_id === currentUid || projectOwnerId === currentUid) && t.status !== 'completed';
+                const canDelete = t.created_by === currentUid || projectOwnerId === currentUid;
+                return `
+                <tr>
+                    <td>${t.title}</td>
+                    <td><span class="status ${t.status}">${t.status === 'in_progress' ? '进行中' : t.status === 'completed' ? '已完成' : '待处理'}</span></td>
+                    <td>${t.assignee || '-'}</td>
+                    <td>
+                        ${!t.assignee_id ? '<button class="btn" onclick="claimTask(' + t.id + ')">认领</button>' : ''}
+                        ${canComplete ? '<button class="btn" onclick="completeTask(' + t.id + ')" style="margin-left:5px;">完成</button>' : ''}
+                        ${canDelete ? '<button class="btn btn-danger" onclick="deleteTask(' + t.id + ')" style="margin-left:5px;">删除</button>' : ''}
+                    </td>
+                </tr>
+            `}).join('');
+        }
+
+        function getCurrentUserId() {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            return user.id;
+        }
+
+        async function showTaskModal() {
+            document.getElementById('taskModal').classList.add('show');
+            // Populate assignee dropdown with project members
+            const select = document.getElementById('taskAssignee');
+            select.innerHTML = '<option value="">不指定</option>';
+            try {
+                const res = await api(`/projects/${projectId}/members`);
+                const data = await res.json();
+                (data.members || []).forEach(m => {
+                    select.innerHTML += `<option value="${m.user_id}">${m.username} (${m.role})</option>`;
+                });
+            } catch (e) { /* ignore */ }
+        }
+
+        function closeTaskModal() {
+            document.getElementById('taskModal').classList.remove('show');
+        }
+
+        async function createTask() {
+            const title = document.getElementById('taskTitle').value;
+            const description = document.getElementById('taskDesc').value;
+            const assigneeId = document.getElementById('taskAssignee').value;
+            const body = { title, description };
+            if (assigneeId) body.assignee_id = parseInt(assigneeId);
+            const res = await api(`/projects/${projectId}/tasks`, {
+                method: 'POST',
+                body: JSON.stringify(body)
+            });
+            if (res.ok) {
+                closeTaskModal();
+                document.getElementById('taskTitle').value = '';
+                document.getElementById('taskDesc').value = '';
+                document.getElementById('taskAssignee').value = '';
+                loadTasks();
+            } else {
+                const data = await res.json();
+                alert(data.error || '创建失败');
+            }
+        }
+
+        async function claimTask(taskId) {
+            const res = await api(`/tasks/${taskId}/claim`, { method: 'POST' });
+            if (res.ok) {
+                loadTasks();
+            } else {
+                const data = await res.json();
+                alert(data.error || '操作失败');
+            }
+        }
+
+        async function completeTask(taskId) {
+            const res = await api(`/tasks/${taskId}/complete`, { method: 'POST' });
+            if (res.ok) {
+                loadTasks();
+            } else {
+                const data = await res.json();
+                alert(data.error || '操作失败');
+            }
+        }
+
+        async function loadDocuments() {
+            const res = await api(`/projects/${projectId}/documents`);
+            const data = await res.json();
+            const tbody = document.getElementById('documentsTable');
+            if (!tbody) return;
+            tbody.innerHTML = data.documents && data.documents.length ? data.documents.map(d => `
+                <tr>
+                    <td>${d.title}</td>
+                    <td>${d.owner || '-'}</td>
+                    <td>${d.created_at ? new Date(d.created_at).toLocaleString('zh-CN') : '-'}</td>
+                    <td>
+                        <button class="btn" onclick="editDoc(${d.id})">查看</button>
+                        ${d.owner_id === getCurrentUserId() ? '<button class="btn btn-danger" onclick="deleteDocument(' + d.id + ')" style="margin-left:5px;">删除</button>' : ''}
+                    </td>
+                </tr>
+            `).join('') : '<tr><td colspan="4" style="color:#666;">暂无文档</td></tr>';
+        }
+
+        function showDocModal() {
+            document.getElementById('docModal').classList.add('show');
+        }
+
+        function closeDocModal() {
+            document.getElementById('docModal').classList.remove('show');
+        }
+
+        async function createDocument() {
+            const title = document.getElementById('docTitle').value;
+            const res = await api(`/documents`, {
+                method: 'POST',
+                body: JSON.stringify({ title, project_id: parseInt(projectId) })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                closeDocModal();
+                document.getElementById('docTitle').value = '';
+                window.location.href = '/static/editor.html?id=' + data.document.id;
+            } else {
+                const data = await res.json();
+                alert(data.error || '创建失败');
+            }
+        }
+
+        function editDoc(docId) {
+            window.location.href = `/static/editor.html?id=${docId}`;
+        }
+
+        async function loadFiles() {
+            const res = await api(`/projects/${projectId}/files`);
+            const data = await res.json();
+            const tbody = document.getElementById('filesTable');
+            tbody.innerHTML = data.files.map(f => `
+                <tr>
+                    <td>${f.filename}</td>
+                    <td>${(f.size / 1024).toFixed(1)} KB</td>
+                    <td>${f.uploader || '-'}</td>
+                    <td>${f.created_at ? new Date(f.created_at).toLocaleString('zh-CN') : '-'}</td>
+                    <td>${f.updated_at ? new Date(f.updated_at).toLocaleString('zh-CN') : '-'}</td>
+                    <td>
+                        <button class="btn" onclick="viewFile(${f.id})">查看</button>
+                        <button class="btn" onclick="downloadFile(${f.id})">下载</button>
+                        ${f.uploader_id === getCurrentUserId() ? '<button class="btn btn-danger" onclick="deleteFile(' + f.id + ')" style="margin-left:5px;">删除</button>' : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (!file) { alert('请选择文件'); return; }
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('project_id', projectId);
+
+            const res = await fetch(`${API_BASE}/files`, {
+                method: 'POST',
+                body: formData
+            });
+            if (res.ok) {
+                fileInput.value = '';
+                loadFiles();
+            } else {
+                const data = await res.json();
+                alert(data.error || '上传失败');
+            }
+        }
+
+        function viewFile(fileId) {
+            window.open(`/static/file-view.html?id=${fileId}`);
+        }
+
+        function downloadFile(fileId) {
+            window.open(`${API_BASE}/files/${fileId}/download`);
+        }
+
+        async function deleteTask(taskId) {
+            if (!confirm('确定要删除该任务吗？')) return;
+            const res = await api(`/tasks/${taskId}`, { method: 'DELETE' });
+            if (res.ok) {
+                loadTasks();
+            } else {
+                const data = await res.json();
+                alert(data.error || '删除失败');
+            }
+        }
+
+        async function deleteDocument(docId) {
+            if (!confirm('确定要删除该文档吗？此操作不可撤销。')) return;
+            const res = await api(`/documents/${docId}`, { method: 'DELETE' });
+            if (res.ok) {
+                loadDocuments();
+            } else {
+                const data = await res.json();
+                alert(data.error || '删除失败');
+            }
+        }
+
+        async function deleteFile(fileId) {
+            if (!confirm('确定要删除该文件吗？')) return;
+            const res = await api(`/files/${fileId}`, { method: 'DELETE' });
+            if (res.ok) {
+                loadFiles();
+            } else {
+                const data = await res.json();
+                alert(data.error || '删除失败');
+            }
+        }
+
+        loadProject();
+    </script>
+</body>
+</html>

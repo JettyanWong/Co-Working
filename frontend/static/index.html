@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coworking</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        .header { background: #4a90d9; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 20px; }
+        .header .user { font-size: 14px; }
+        .main { display: flex; height: calc(100vh - 60px); }
+        .sidebar { width: 250px; background: white; border-right: 1px solid #ddd; padding: 20px; overflow-y: auto; }
+        .sidebar h3 { margin-bottom: 15px; color: #666; font-size: 14px; text-transform: uppercase; }
+        .sidebar ul { list-style: none; }
+        .sidebar li { margin-bottom: 10px; }
+        .sidebar a { color: #333; text-decoration: none; padding: 8px 12px; display: block; border-radius: 4px; }
+        .sidebar a:hover { background: #f0f0f0; }
+        .sidebar a.active { background: #e3f2fd; color: #4a90d9; }
+        .content { flex: 1; padding: 20px; overflow-y: auto; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
+        .card h2 { margin-bottom: 15px; color: #333; }
+        .btn { padding: 8px 16px; background: #4a90d9; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .btn:hover { background: #3a7fc9; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f8f8f8; color: #666; }
+        .status { padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .status.pending { background: #fff3cd; color: #856404; }
+        .status.in_progress { background: #d1ecf1; color: #0c5460; }
+        .status.completed { background: #d4edda; color: #155724; }
+        .hidden { display: none; }
+        .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal.show { display: flex; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Coworking</h1>
+        <div class="user">
+            <span id="currentUser"></span> | <a href="#" onclick="logout()" style="color:white;">退出</a>
+        </div>
+    </div>
+    <div class="main">
+        <div class="sidebar">
+            <h3>导航</h3>
+            <ul>
+                <li><a href="#" onclick="showSection('projects', event)" class="active" id="navProjects">项目</a></li>
+                <li><a href="#" onclick="showSection('tasks', event)" id="navTasks">任务</a></li>
+                <li><a href="#" onclick="showSection('documents', event)" id="navDocuments">文档</a></li>
+                <li><a href="#" onclick="showSection('files', event)" id="navFiles">文件</a></li>
+                <li id="adminNavItem" style="display:none;"><a href="/static/admin.html" style="color:#dc3545;">管理后台</a></li>
+            </ul>
+        </div>
+        <div class="content">
+            <!-- Projects Section -->
+            <div id="projectsSection">
+                <div class="card">
+                    <h2>我的项目</h2>
+                    <button class="btn" onclick="showCreateProject()">新建项目</button>
+                </div>
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr><th>名称</th><th>描述</th><th>创建者</th><th>创建时间</th><th>成员</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="projectsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tasks Section -->
+            <div id="tasksSection" class="hidden">
+                <div class="card">
+                    <h2>我的任务</h2>
+                </div>
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr><th>项目</th><th>任务</th><th>状态</th><th>负责人</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="tasksTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Documents Section -->
+            <div id="documentsSection" class="hidden">
+                <div class="card">
+                    <h2>文档</h2>
+                    <button class="btn" onclick="showCreateDocument()">新建文档</button>
+                </div>
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr><th>标题</th><th>创建人</th><th>所属项目</th><th>创建时间</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="documentTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Files Section -->
+            <div id="filesSection" class="hidden">
+                <div class="card">
+                    <h2>文件</h2>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                        <input type="file" id="fileInput">
+                        <select id="fileProjectSelect" style="padding:8px;border:1px solid #ddd;border-radius:4px;">
+                            <option value="">选择项目（可选）</option>
+                        </select>
+                        <button class="btn" onclick="uploadFile()">上传</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr><th>文件名</th><th>大小</th><th>上传者</th><th>所属项目</th><th>上传时间</th><th>最后编辑</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="filesTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="createProjectModal" class="modal">
+        <div class="card" style="width:450px;margin:0;max-height:80vh;overflow-y:auto;">
+            <h2>新建项目</h2>
+            <form id="createProjectForm">
+                <div style="margin-bottom:15px;">
+                    <label>项目名称</label>
+                    <input type="text" id="projectName" style="width:100%;padding:8px;" required>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label>描述</label>
+                    <textarea id="projectDesc" style="width:100%;padding:8px;height:80px;"></textarea>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label>项目成员（可多选）</label>
+                    <div id="userCheckboxList" style="max-height:200px;overflow-y:auto;border:1px solid #ddd;border-radius:4px;padding:8px;"></div>
+                </div>
+                <button type="submit" class="btn">创建</button>
+                <button type="button" class="btn btn-danger" onclick="closeProjectModal()">取消</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="createDocumentModal" class="modal">
+        <div class="card" style="width:400px;margin:0;">
+            <h2>新建文档</h2>
+            <form id="createDocumentForm">
+                <div style="margin-bottom:15px;">
+                    <label>文档标题</label>
+                    <input type="text" id="docTitleInput" style="width:100%;padding:8px;" required>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label>所属项目（可选）</label>
+                    <select id="docProjectSelect" style="width:100%;padding:8px;">
+                        <option value="">不关联项目</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn">创建</button>
+                <button type="button" class="btn btn-danger" onclick="closeDocModal()">取消</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
