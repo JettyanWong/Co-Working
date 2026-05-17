@@ -4,83 +4,285 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>项目 - Coworking</title>
+    <link rel="stylesheet" href="/static/css/industrial-ui.css">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
-        .header { background: #4a90d9; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-size: 20px; }
-        .header a { color: white; text-decoration: none; }
-        .main { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
-        .card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
-        .card h2 { margin-bottom: 15px; color: #333; border-bottom: 2px solid #4a90d9; padding-bottom: 10px; }
-        .btn { padding: 8px 16px; background: #4a90d9; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .btn:hover { background: #3a7fc9; }
-        .btn-danger { background: #dc3545; }
-        .btn-danger:hover { background: #c82333; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background: #f8f8f8; color: #666; }
-        .status { padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-        .status.pending { background: #fff3cd; color: #856404; }
-        .status.in_progress { background: #d1ecf1; color: #0c5460; }
-        .status.completed { background: #d4edda; color: #155724; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; color: #666; }
-        .form-group input, .form-group textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-        .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
-        .modal.show { display: flex; }
-        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 400px; max-width: 90%; }
-        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px; }
+        .project-page {
+            width: min(1420px, 100%);
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        .project-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem;
+        }
+
+        .project-panel {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .project-panel__kicker {
+            margin: 0;
+            color: var(--ui-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.22em;
+            font-size: 0.68rem;
+        }
+
+        .project-panel__title {
+            margin: 0.25rem 0 0;
+        }
+
+        .project-panel__meta {
+            margin: 0.25rem 0 0;
+            color: var(--ui-muted);
+            line-height: 1.5;
+        }
+
+        .project-panel .table-shell {
+            overflow-x: auto;
+        }
+
+        .file-toolbar {
+            display: grid;
+            grid-template-columns: minmax(180px, 1fr) auto;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .role-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 28px;
+            padding: 0.35rem 0.72rem;
+            border: 1px solid rgba(153, 180, 214, 0.2);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--ui-text);
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .role-badge.owner {
+            color: #ffd9ab;
+            border-color: rgba(255, 191, 115, 0.32);
+            background: rgba(255, 191, 115, 0.1);
+        }
+
+        .role-badge.admin {
+            color: var(--ui-accent-strong);
+            border-color: rgba(121, 199, 255, 0.3);
+            background: rgba(121, 199, 255, 0.1);
+        }
+
+        .role-badge.member {
+            color: #b7e5a5;
+            border-color: rgba(151, 208, 127, 0.3);
+            background: rgba(151, 208, 127, 0.1);
+        }
+
+        .role-badge.viewer {
+            color: var(--ui-muted);
+        }
+
+        .user-search {
+            margin-bottom: 0.8rem;
+        }
+
+        .user-list {
+            max-height: 220px;
+            overflow-y: auto;
+            border: 1px solid rgba(153, 180, 214, 0.18);
+            border-radius: var(--ui-radius-sm);
+            background: rgba(7, 10, 14, 0.5);
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.8rem 0.95rem;
+            border-bottom: 1px solid rgba(153, 180, 214, 0.1);
+            color: var(--ui-text);
+            cursor: pointer;
+        }
+
+        .user-item:last-child {
+            border-bottom: none;
+        }
+
+        .user-item:hover,
+        .user-item.selected {
+            background: rgba(121, 199, 255, 0.08);
+        }
+
+        .user-item span[style],
+        #membersTable span[style] {
+            color: var(--ui-muted) !important;
+        }
+
+        #membersTable span[style*="#4a90d9"] {
+            color: var(--ui-accent-strong) !important;
+        }
+
+        #membersTable select {
+            min-height: 36px;
+            padding: 0.45rem 0.7rem !important;
+            border-color: rgba(153, 180, 214, 0.18) !important;
+            border-radius: 10px !important;
+        }
+
+        .modal .modal-content {
+            width: min(100%, 460px);
+        }
+
+        .modal .modal-content h3 {
+            margin: 0 0 1rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .modal-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.7rem;
+            justify-content: flex-end;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 980px) {
+            .project-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .project-page {
+                padding: 0.75rem;
+            }
+
+            .file-toolbar {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-actions .btn {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1><a href="/static/index.html">←</a> <span id="projectName">项目</span></h1>
-        <a href="/static/index.html" style="color:white;">返回首页</a>
-    </div>
-
-    <div class="main">
-        <!-- Tasks Section -->
-        <div class="card">
-            <h2>任务</h2>
-            <button class="btn" onclick="showTaskModal()">+ 添加任务</button>
-            <table style="margin-top:15px;">
-                <thead>
-                    <tr><th>任务</th><th>状态</th><th>负责人</th><th>操作</th></tr>
-                </thead>
-                <tbody id="tasksTable"></tbody>
-            </table>
+    <header class="shell-header">
+        <div class="shell-header__brand">
+            <span class="brand-mark" aria-hidden="true"></span>
+            <div>
+                <p class="eyebrow">Project Detail</p>
+                <h1 id="projectName">项目</h1>
+            </div>
         </div>
+        <nav class="shell-header__meta" aria-label="项目导航">
+            <a class="btn btn-ghost" href="/static/index.html">← 项目列表</a>
+            <a class="btn btn-ghost" href="/static/index.html">返回首页</a>
+        </nav>
+    </header>
+
+    <main class="page-shell project-page">
+        <div class="project-grid">
+        <!-- Tasks Section -->
+            <section class="card project-panel">
+                <div class="card-head">
+                    <div>
+                        <p class="project-panel__kicker">Task Bay</p>
+                        <h2 class="project-panel__title">任务</h2>
+                        <p class="project-panel__meta">追踪认领、负责人和完成状态。</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="showTaskModal()">+ 添加任务</button>
+                </div>
+                <div class="table-shell panel--inset">
+                    <table>
+                        <thead>
+                            <tr><th>任务</th><th>状态</th><th>负责人</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="tasksTable"></tbody>
+                    </table>
+                </div>
+            </section>
 
         <!-- Documents Section -->
-        <div class="card">
-            <h2>文档</h2>
-            <button class="btn" onclick="showDocModal()">+ 创建文档</button>
-            <table style="margin-top:15px;">
-                <thead>
-                    <tr><th>标题</th><th>创建人</th><th>创建时间</th><th>操作</th></tr>
-                </thead>
-                <tbody id="documentsTable"></tbody>
-            </table>
-        </div>
+            <section class="card project-panel">
+                <div class="card-head">
+                    <div>
+                        <p class="project-panel__kicker">Document Vault</p>
+                        <h2 class="project-panel__title">文档</h2>
+                        <p class="project-panel__meta">项目文档入口和编辑控制台。</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="showDocModal()">+ 创建文档</button>
+                </div>
+                <div class="table-shell panel--inset">
+                    <table>
+                        <thead>
+                            <tr><th>标题</th><th>创建人</th><th>创建时间</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="documentsTable"></tbody>
+                    </table>
+                </div>
+            </section>
 
         <!-- Files Section -->
-        <div class="card">
-            <h2>文件</h2>
-            <input type="file" id="fileInput">
-            <button class="btn" onclick="uploadFile()" style="margin-top:10px;">上传</button>
-            <table style="margin-top:15px;">
-                <thead>
-                    <tr><th>文件名</th><th>大小</th><th>上传者</th><th>上传时间</th><th>最后编辑</th><th>操作</th></tr>
-                </thead>
-                <tbody id="filesTable"></tbody>
-            </table>
+            <section class="card project-panel">
+                <div class="card-head">
+                    <div>
+                        <p class="project-panel__kicker">File Rack</p>
+                        <h2 class="project-panel__title">文件</h2>
+                        <p class="project-panel__meta">上传、查看和下载项目附件。</p>
+                    </div>
+                </div>
+                <div class="file-toolbar">
+                    <input type="file" id="fileInput">
+                    <button class="btn btn-primary" onclick="uploadFile()">上传</button>
+                </div>
+                <div class="table-shell panel--inset">
+                    <table>
+                        <thead>
+                            <tr><th>文件名</th><th>大小</th><th>上传者</th><th>上传时间</th><th>最后编辑</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="filesTable"></tbody>
+                    </table>
+                </div>
+            </section>
+
+        <!-- Members Section -->
+            <section class="card project-panel">
+                <div class="card-head">
+                    <div>
+                        <p class="project-panel__kicker">Crew Access</p>
+                        <h2 class="project-panel__title">成员</h2>
+                        <p class="project-panel__meta">维护成员角色和项目访问权限。</p>
+                    </div>
+                    <button class="btn btn-primary" id="addMemberBtn" onclick="showMemberModal()" style="display:none;">+ 添加成员</button>
+                </div>
+                <div class="table-shell panel--inset">
+                    <table>
+                        <thead>
+                            <tr><th>用户名</th><th>角色</th><th>加入时间</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="membersTable"></tbody>
+                    </table>
+                </div>
+            </section>
         </div>
-    </div>
+    </main>
 
     <!-- Task Modal -->
     <div id="taskModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content card">
             <h3>添加任务</h3>
             <div class="form-group">
                 <label>任务名称</label>
@@ -105,7 +307,7 @@
 
     <!-- Document Modal -->
     <div id="docModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content card">
             <h3>创建文档</h3>
             <div class="form-group">
                 <label>文档标题</label>
@@ -114,6 +316,27 @@
             <div class="modal-actions">
                 <button class="btn btn-danger" onclick="closeDocModal()">取消</button>
                 <button class="btn" onclick="createDocument()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Member Modal -->
+    <div id="memberModal" class="modal">
+        <div class="modal-content card" style="width:450px;">
+            <h3>添加成员</h3>
+            <input type="text" class="user-search" id="userSearch" placeholder="搜索用户..." oninput="searchUsers()">
+            <div class="user-list" id="userList"></div>
+            <div class="form-group" style="margin-top:10px;">
+                <label>角色</label>
+                <select id="memberRole" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;">
+                    <option value="member">成员</option>
+                    <option value="admin">管理员</option>
+                    <option value="viewer">观察者</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-danger" onclick="closeMemberModal()">取消</button>
+                <button class="btn" onclick="addMember()">添加</button>
             </div>
         </div>
     </div>
@@ -154,6 +377,7 @@
             loadTasks();
             loadDocuments();
             loadFiles();
+            loadMembers();
         }
 
         async function loadTasks() {
@@ -370,6 +594,147 @@
             } else {
                 const data = await res.json();
                 alert(data.error || '删除失败');
+            }
+        }
+
+        // ---- Member management ----
+        let currentUserRole = null;
+        let selectedUserId = null;
+
+        async function loadMembers() {
+            const res = await api(`/projects/${projectId}/members`);
+            const data = await res.json();
+            const members = data.members || [];
+            const currentUid = getCurrentUserId();
+            // Find current user's role
+            const me = members.find(m => m.user_id === currentUid);
+            currentUserRole = me ? me.role : null;
+            // Show/hide add member button for owner/admin
+            const addBtn = document.getElementById('addMemberBtn');
+            if (currentUserRole === 'owner' || currentUserRole === 'admin') {
+                addBtn.style.display = '';
+            } else {
+                addBtn.style.display = 'none';
+            }
+            const tbody = document.getElementById('membersTable');
+            tbody.innerHTML = members.map(m => {
+                const roleLabel = {owner:'拥有者',admin:'管理员',member:'成员',viewer:'观察者'}[m.role] || m.role;
+                const canManage = (currentUserRole === 'owner' || currentUserRole === 'admin') && m.role !== 'owner';
+                const canRemove = currentUserRole === 'owner' && m.role !== 'owner';
+                let actions = '';
+                if (canManage) {
+                    actions += `<select onchange="changeRole(${m.user_id}, this.value)" style="padding:4px;border:1px solid #ddd;border-radius:4px;">
+                        <option value="">修改角色</option>
+                        <option value="admin">管理员</option>
+                        <option value="member">成员</option>
+                        <option value="viewer">观察者</option>
+                    </select> `;
+                }
+                if (canRemove) {
+                    actions += `<button class="btn btn-danger" onclick="removeMember(${m.user_id})" style="padding:4px 8px;font-size:12px;">移除</button>`;
+                }
+                if (!actions) actions = '-';
+                return `<tr>
+                    <td>${m.username}${m.user_id === projectOwnerId ? ' <span style="color:#4a90d9;font-size:11px;">(拥有者)</span>' : ''}</td>
+                    <td><span class="role-badge ${m.role}">${roleLabel}</span></td>
+                    <td>${m.joined_at ? new Date(m.joined_at).toLocaleString('zh-CN') : '-'}</td>
+                    <td>${actions}</td>
+                </tr>`;
+            }).join('');
+            // Also refresh the task assignee dropdown
+            const select = document.getElementById('taskAssignee');
+            if (select) {
+                select.innerHTML = '<option value="">不指定</option>';
+                members.forEach(m => {
+                    select.innerHTML += `<option value="${m.user_id}">${m.username} (${m.role})</option>`;
+                });
+            }
+        }
+
+        function showMemberModal() {
+            document.getElementById('memberModal').classList.add('show');
+            document.getElementById('userSearch').value = '';
+            document.getElementById('memberRole').value = 'member';
+            selectedUserId = null;
+            searchUsers();
+        }
+
+        function closeMemberModal() {
+            document.getElementById('memberModal').classList.remove('show');
+        }
+
+        async function searchUsers() {
+            const q = document.getElementById('userSearch').value;
+            const res = await api(`/users/search?q=${encodeURIComponent(q)}`);
+            const data = await res.json();
+            // Filter out existing members
+            const membersRes = await api(`/projects/${projectId}/members`);
+            const membersData = await membersRes.json();
+            const existingIds = new Set((membersData.members || []).map(m => m.user_id));
+            const available = (data.users || []).filter(u => !existingIds.has(u.id));
+            const list = document.getElementById('userList');
+            if (available.length === 0) {
+                list.innerHTML = '<div class="user-item" style="color:#666;">没有找到可添加的用户</div>';
+            } else {
+                list.innerHTML = available.map(u => `<div class="user-item${selectedUserId === u.id ? ' selected' : ''}" onclick="selectUser(${u.id}, '${u.username}')">
+                    <span>${u.username}</span><span style="color:#666;font-size:12px;">${u.email || ''}</span>
+                </div>`).join('');
+            }
+        }
+
+        function selectUser(uid, username) {
+            selectedUserId = uid;
+            document.getElementById('userSearch').value = username;
+            document.querySelectorAll('.user-item').forEach(el => el.classList.remove('selected'));
+            // Find and highlight the clicked item
+            const items = document.querySelectorAll('.user-item');
+            items.forEach(el => { if (el.textContent.includes(username)) el.classList.add('selected'); });
+        }
+
+        async function addMember() {
+            if (!selectedUserId) { alert('请先选择用户'); return; }
+            const role = document.getElementById('memberRole').value;
+            const res = await api(`/projects/${projectId}/members`, {
+                method: 'POST',
+                body: JSON.stringify({ user_id: selectedUserId, role })
+            });
+            if (res.ok) {
+                closeMemberModal();
+                loadMembers();
+            } else {
+                const data = await res.json();
+                alert(data.error || '添加失败');
+            }
+        }
+
+        async function removeMember(userId) {
+            const name = document.querySelector(`#membersTable tr td`) ? '' : '';
+            if (!confirm('确定要移除该成员吗？')) return;
+            const res = await api(`/projects/${projectId}/members/${userId}`, { method: 'DELETE' });
+            if (res.ok) {
+                loadMembers();
+            } else {
+                const data = await res.json();
+                alert(data.error || '移除失败');
+            }
+        }
+
+        async function changeRole(userId, newRole) {
+            if (!newRole) return;
+            if (!confirm(`确定要修改该成员的角色为 "${newRole}" 吗？`)) {
+                loadMembers(); // Reset the select
+                return;
+            }
+            const res = await api(`/projects/${projectId}/members/${userId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ role: newRole })
+            });
+            if (res.ok) {
+                loadMembers();
+            } else {
+                const data = await res.json();
+                alert(data.error || '修改失败');
+                loadMembers();
             }
         }
 

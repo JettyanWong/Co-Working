@@ -4,65 +4,82 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>登录 - Coworking</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
-        .container { max-width: 400px; margin: 100px auto; padding: 20px; }
-        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { text-align: center; margin-bottom: 30px; color: #333; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 5px; color: #666; }
-        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
-        button { width: 100%; padding: 12px; background: #4a90d9; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
-        button:hover { background: #3a7fc9; }
-        .error { color: red; margin-bottom: 15px; text-align: center; }
-        .toggle { text-align: center; margin-top: 15px; }
-        .toggle a { color: #4a90d9; text-decoration: none; }
-    </style>
+    <link rel="stylesheet" href="/static/css/industrial-ui.css">
 </head>
 <body>
-    <div class="container">
-        <div class="card">
-            <h1>登录</h1>
-            <div id="error" class="error"></div>
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="username">用户名</label>
-                    <input type="text" id="username" name="username" required>
+    <main class="auth-shell">
+        <section class="auth-brand panel panel--glow">
+            <p class="eyebrow">CO-WORKING ACCESS BAY</p>
+            <h1>Coworking</h1>
+            <p class="lede">协作控制台，负责项目、任务、文档和文件的统一接入。登录后进入工作空间。</p>
+
+            <div class="auth-rack">
+                <div class="auth-mini-card">
+                    <strong>Secure Login</strong>
+                    <span>帐号通过后才能进入主舱，未审核用户会被阻挡在外。</span>
                 </div>
-                <div class="form-group">
-                    <label for="password">密码</label>
-                    <input type="password" id="password" name="password" required>
+                <div class="auth-mini-card">
+                    <strong>Shared Workspace</strong>
+                    <span>项目、文档和文件都在同一套机械壳体中协作。</span>
                 </div>
-                <button type="submit">登录</button>
-            </form>
-            <div class="toggle">
-                <a href="#" onclick="showRegister()">没有账号？去注册</a>
+                <div class="auth-mini-card">
+                    <strong>Admin Gate</strong>
+                    <span>管理员可进入审核与权限控制面板。</span>
+                </div>
             </div>
-        </div>
-        <div class="card" id="registerCard" style="display:none;">
-            <h1>注册</h1>
-            <div id="regError" class="error"></div>
-            <form id="registerForm">
-                <div class="form-group">
-                    <label for="regUsername">用户名</label>
-                    <input type="text" id="regUsername" name="username" required>
+        </section>
+
+        <section class="auth-stack">
+            <div class="auth-card panel panel--inset">
+                <div class="card-head">
+                    <div>
+                        <p class="eyebrow">Crew Login</p>
+                        <h2>登录</h2>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="regEmail">邮箱</label>
-                    <input type="email" id="regEmail" name="email" required>
-                </div>
-                <div class="form-group">
-                    <label for="regPassword">密码</label>
-                    <input type="password" id="regPassword" name="password" required>
-                </div>
-                <button type="submit">注册</button>
-            </form>
-            <div class="toggle">
-                <a href="#" onclick="showLogin()">已有账号？去登录</a>
+                <div id="error" class="form-message" aria-live="polite"></div>
+                <form id="loginForm">
+                    <div class="field">
+                        <label for="username">用户名</label>
+                        <input type="text" id="username" name="username" required autocomplete="username">
+                    </div>
+                    <div class="field">
+                        <label for="password">密码</label>
+                        <input type="password" id="password" name="password" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">登录</button>
+                </form>
+                <p class="toggle">没有账号？<a href="#" onclick="showRegister(); return false;">去注册</a></p>
             </div>
-        </div>
-    </div>
+
+            <div class="auth-card panel panel--inset" id="registerCard" style="display:none;">
+                <div class="card-head">
+                    <div>
+                        <p class="eyebrow">Register</p>
+                        <h2>注册</h2>
+                    </div>
+                </div>
+                <div id="regError" class="form-message" aria-live="polite"></div>
+                <form id="registerForm">
+                    <div class="field">
+                        <label for="regUsername">用户名</label>
+                        <input type="text" id="regUsername" name="username" required autocomplete="username">
+                    </div>
+                    <div class="field">
+                        <label for="regEmail">邮箱</label>
+                        <input type="email" id="regEmail" name="email" required autocomplete="email">
+                    </div>
+                    <div class="field">
+                        <label for="regPassword">密码</label>
+                        <input type="password" id="regPassword" name="password" required autocomplete="new-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">注册</button>
+                </form>
+                <p class="toggle">已有账号？<a href="#" onclick="showLogin(); return false;">去登录</a></p>
+            </div>
+        </section>
+    </main>
+
     <script>
         const API_BASE = '/auth';
 
@@ -115,12 +132,15 @@
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    errorEl.style.color = '#28a745';
+                    errorEl.classList.add('success');
                     errorEl.textContent = data.message || '注册成功，请等待管理员审核';
                     document.getElementById('regUsername').value = '';
                     document.getElementById('regEmail').value = '';
                     document.getElementById('regPassword').value = '';
-                    setTimeout(() => { errorEl.style.color = 'red'; showLogin(); }, 2000);
+                    setTimeout(() => {
+                        errorEl.classList.remove('success');
+                        showLogin();
+                    }, 2000);
                 } else {
                     errorEl.textContent = data.error || '注册失败';
                 }

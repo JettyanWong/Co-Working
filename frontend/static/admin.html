@@ -4,72 +4,62 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理后台 - Coworking</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
-        .header { background: #2c3e50; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-size: 20px; }
-        .header a { color: white; text-decoration: none; }
-        .main { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
-        .card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
-        .card h2 { margin-bottom: 15px; color: #333; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; }
-        .btn { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
-        .btn-success { background: #28a745; color: white; }
-        .btn-success:hover { background: #218838; }
-        .btn-danger { background: #dc3545; color: white; }
-        .btn-danger:hover { background: #c82333; }
-        .btn-warning { background: #ffc107; color: #333; }
-        .btn-warning:hover { background: #e0a800; }
-        .btn-info { background: #17a2b8; color: white; }
-        .btn-info:hover { background: #138496; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background: #f8f8f8; color: #666; }
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-        .badge-pending { background: #fff3cd; color: #856404; }
-        .badge-active { background: #d4edda; color: #155724; }
-        .badge-disabled { background: #f8d7da; color: #721c24; }
-        .badge-admin { background: #d1ecf1; color: #0c5460; }
-        .badge-member { background: #e9ecef; color: #666; }
-        .tabs { display: flex; gap: 0; margin-bottom: 20px; }
-        .tab { padding: 10px 20px; background: #e9ecef; border: none; cursor: pointer; font-size: 14px; border-radius: 4px 4px 0 0; }
-        .tab.active { background: #2c3e50; color: white; }
-    </style>
+    <link rel="stylesheet" href="/static/css/industrial-ui.css">
 </head>
 <body>
-    <div class="header">
-        <h1><a href="/static/index.html">←</a> 管理后台</h1>
-        <a href="/static/index.html">返回首页</a>
-    </div>
+    <header class="shell-header">
+        <div class="shell-header__brand">
+            <span class="brand-mark" aria-hidden="true"></span>
+            <div>
+                <p class="eyebrow">ADMIN CONTROL BAY</p>
+                <h1>管理后台</h1>
+            </div>
+        </div>
+        <div class="shell-header__meta">
+            <a href="/static/index.html">返回首页</a>
+        </div>
+    </header>
 
-    <div class="main">
+    <main class="page-shell" style="max-width:1200px;margin:0 auto;padding:1rem;">
         <div class="tabs">
             <button class="tab active" onclick="showTab('users')">用户管理</button>
-            <button class="tab" onclick="showTab('pending')">待审核 <span id="pendingCount" style="background:#dc3545;color:white;padding:2px 6px;border-radius:10px;font-size:11px;">0</span></button>
+            <button class="tab" onclick="showTab('pending')">待审核 <span id="pendingCount" class="badge badge-pending">0</span></button>
         </div>
 
-        <!-- All Users -->
-        <div id="usersTab" class="card">
-            <h2>所有用户</h2>
-            <table>
-                <thead>
-                    <tr><th>ID</th><th>用户名</th><th>邮箱</th><th>角色</th><th>状态</th><th>注册时间</th><th>操作</th></tr>
-                </thead>
-                <tbody id="usersTable"></tbody>
-            </table>
-        </div>
+        <section id="usersTab" class="card">
+            <div class="card-head">
+                <div>
+                    <p class="eyebrow">User Registry</p>
+                    <h2>所有用户</h2>
+                </div>
+            </div>
+            <div class="table-shell">
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>用户名</th><th>邮箱</th><th>角色</th><th>状态</th><th>注册时间</th><th>操作</th></tr>
+                    </thead>
+                    <tbody id="usersTable"></tbody>
+                </table>
+            </div>
+        </section>
 
-        <!-- Pending Users -->
-        <div id="pendingTab" class="card" style="display:none;">
-            <h2>待审核用户</h2>
-            <table>
-                <thead>
-                    <tr><th>ID</th><th>用户名</th><th>邮箱</th><th>注册时间</th><th>操作</th></tr>
-                </thead>
-                <tbody id="pendingTable"></tbody>
-            </table>
-        </div>
-    </div>
+        <section id="pendingTab" class="card" style="display:none;">
+            <div class="card-head">
+                <div>
+                    <p class="eyebrow">Approval Queue</p>
+                    <h2>待审核用户</h2>
+                </div>
+            </div>
+            <div class="table-shell">
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>用户名</th><th>邮箱</th><th>注册时间</th><th>操作</th></tr>
+                    </thead>
+                    <tbody id="pendingTable"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
 
     <script>
         const API_BASE = '/api';
@@ -136,6 +126,7 @@
                             ${u.status === 'disabled' ? `<button class="btn btn-success" onclick="enableUser(${u.id})">启用</button>` : ''}
                             ${u.role === 'member' ? `<button class="btn btn-info" onclick="promoteUser(${u.id})" style="margin-left:4px;">升为管理员</button>` : ''}
                             ${u.role === 'admin' ? `<button class="btn btn-warning" onclick="demoteUser(${u.id})" style="margin-left:4px;">降为成员</button>` : ''}
+                            <button class="btn btn-info" onclick="showResetPasswordModal(${u.id}, decodeURIComponent('${encodeURIComponent(u.username)}'))" style="margin-left:4px;">重置密码</button>
                             <button class="btn btn-danger" onclick="deleteUser(${u.id})" style="margin-left:4px;">删除</button>
                         ` : '<span style="color:#999;">当前用户</span>'}
                     </td>
@@ -253,7 +244,88 @@
             }
         }
 
+        let resetPasswordUserId = null;
+
+        function showResetPasswordModal(userId, username) {
+            resetPasswordUserId = userId;
+            document.getElementById('resetPasswordUserName').textContent = username;
+            document.getElementById('resetPasswordError').textContent = '';
+            document.getElementById('resetPasswordNew').value = '';
+            document.getElementById('resetPasswordConfirm').value = '';
+            document.getElementById('resetPasswordModal').classList.add('show');
+        }
+
+        function closeResetPasswordModal() {
+            resetPasswordUserId = null;
+            document.getElementById('resetPasswordModal').classList.remove('show');
+            document.getElementById('resetPasswordForm').reset();
+            document.getElementById('resetPasswordError').textContent = '';
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('resetPasswordForm');
+            if (!form) return;
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const newPassword = document.getElementById('resetPasswordNew').value;
+                const confirmPassword = document.getElementById('resetPasswordConfirm').value;
+                const errorEl = document.getElementById('resetPasswordError');
+
+                if (!resetPasswordUserId) {
+                    errorEl.textContent = '缺少目标用户';
+                    return;
+                }
+                if (!newPassword || !confirmPassword) {
+                    errorEl.textContent = '请填写全部密码字段';
+                    return;
+                }
+                if (newPassword.length < 8) {
+                    errorEl.textContent = '新密码至少 8 个字符';
+                    return;
+                }
+                if (newPassword !== confirmPassword) {
+                    errorEl.textContent = '两次输入的新密码不一致';
+                    return;
+                }
+
+                const res = await api(`/users/${resetPasswordUserId}/reset-password`, {
+                    method: 'POST',
+                    body: JSON.stringify({ password: newPassword })
+                });
+                if (res.ok) {
+                    await loadUsers();
+                    closeResetPasswordModal();
+                    alert('密码已重置成功');
+                } else {
+                    const data = await res.json();
+                    errorEl.textContent = data.error || '重置失败';
+                }
+            });
+        });
+
         loadUsers();
     </script>
+
+    <div id="resetPasswordModal" class="modal">
+        <div class="modal-content">
+            <h3>重置密码</h3>
+            <p style="margin-bottom:12px;color:#666;">用户：<strong id="resetPasswordUserName"></strong></p>
+            <div id="resetPasswordError" class="error" style="min-height:20px;"></div>
+            <form id="resetPasswordForm">
+                <div class="form-group">
+                    <label for="resetPasswordNew">新密码</label>
+                    <input type="password" id="resetPasswordNew" required>
+                </div>
+                <div class="form-group">
+                    <label for="resetPasswordConfirm">确认新密码</label>
+                    <input type="password" id="resetPasswordConfirm" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-danger" onclick="closeResetPasswordModal()">取消</button>
+                    <button type="submit" class="btn btn-info">确认重置</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>

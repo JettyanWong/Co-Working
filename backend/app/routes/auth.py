@@ -69,3 +69,25 @@ def logout():
 @login_required
 def me():
     return jsonify({'user': current_user.to_dict()})
+
+
+@bp.route('/change-password', methods=['POST'])
+@login_required
+def change_password():
+    data = request.get_json(silent=True) or {}
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+
+    if not current_password or not new_password:
+        return jsonify({'error': 'Missing current_password or new_password'}), 400
+
+    if len(new_password) < 8:
+        return jsonify({'error': 'New password must be at least 8 characters'}), 400
+
+    if not current_user.check_password(current_password):
+        return jsonify({'error': 'Current password is incorrect'}), 401
+
+    current_user.set_password(new_password)
+    db.session.commit()
+
+    return jsonify({'message': 'Password changed successfully'})

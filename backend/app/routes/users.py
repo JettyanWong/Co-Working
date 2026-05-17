@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
+from werkzeug.security import generate_password_hash
 from app import db
 from app.models import User, Project, Task, Document, File
 from functools import wraps
@@ -15,6 +16,17 @@ def admin_required(f):
             return jsonify({'error': 'Admin access required'}), 403
         return f(*args, **kwargs)
     return decorated
+
+
+@bp.route('/search', methods=['GET'])
+@login_required
+def search_users():
+    q = request.args.get('q', '').strip()
+    query = User.query.filter(User.status == 'active')
+    if q:
+        query = query.filter(User.username.contains(q))
+    users = query.limit(20).all()
+    return jsonify({'users': [{'id': u.id, 'username': u.username, 'email': u.email} for u in users]})
 
 
 @bp.route('', methods=['GET'])
@@ -95,3 +107,30 @@ def reject_user(user_id):
     db.session.delete(user)
     db.session.commit()
     return jsonify({'message': 'User rejected and removed'})
+
+
+@bp.route('/<int:user_id>/reset-password', methods=['POST'])
+@login_required
+@admin_required
+def reset_user_password(user_id):
+    user = User.query.get_or_404(user_id)
+    data = request.get_json(silent=True) or {}
+    password = data.get('password', '')
+
+    if not isinstance(password, str) or not password.strip():
+        return jsonify({'error': 'Password is required'}), 400
+    if len(password) < 8:
+        return jsonify({'error': 'Password must be at least 8 characters'}), 400
+
+    hashed_password = generate_password_hash(password)
+    if hasattr(user, 'set_password') and callable(getattr(user, 'set_password')):
+        user.set_password(password)
+    elif hasattr(user, 'password_hash'):
+        user.password_hash = hashed_password
+    elif hasattr(user, 'password'):
+        user.password = hashed_password
+    else:
+        return jsonify({'error': 'Password field is not configured for this user model'}), 500
+
+    db.session.commit()
+    return jsonify({'message': 'Password reset successfully', 'user': user.to_dict()})

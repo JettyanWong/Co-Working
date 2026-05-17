@@ -10,6 +10,14 @@ function init() {
     }
     currentUser = JSON.parse(user);
     document.getElementById('currentUser').textContent = currentUser.username;
+    const changePasswordBtn = document.getElementById('changePasswordBtn');
+    if (changePasswordBtn) {
+        changePasswordBtn.addEventListener('click', showChangePasswordModal);
+    }
+    const changePasswordForm = document.getElementById('changePasswordForm');
+    if (changePasswordForm) {
+        changePasswordForm.addEventListener('submit', submitChangePassword);
+    }
     if (currentUser.role === 'admin') {
         document.getElementById('adminNavItem').style.display = '';
     }
@@ -198,6 +206,62 @@ function showCreateDocument() {
 
 function closeDocModal() {
     document.getElementById('createDocumentModal').classList.remove('show');
+}
+
+function showChangePasswordModal() {
+    const modal = document.getElementById('changePasswordModal');
+    const errorEl = document.getElementById('changePasswordError');
+    if (errorEl) errorEl.textContent = '';
+    if (modal) modal.classList.add('show');
+}
+
+function closeChangePasswordModal() {
+    const modal = document.getElementById('changePasswordModal');
+    if (modal) modal.classList.remove('show');
+    const form = document.getElementById('changePasswordForm');
+    if (form) form.reset();
+    const errorEl = document.getElementById('changePasswordError');
+    if (errorEl) errorEl.textContent = '';
+}
+
+function closeModal() {
+    closeProjectModal();
+    closeDocModal();
+    closeChangePasswordModal();
+}
+
+async function submitChangePassword(e) {
+    e.preventDefault();
+    const errorEl = document.getElementById('changePasswordError');
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+        if (errorEl) errorEl.textContent = '请填写全部密码字段';
+        return;
+    }
+    if (newPassword.length < 8) {
+        if (errorEl) errorEl.textContent = '新密码至少 8 个字符';
+        return;
+    }
+    if (newPassword !== confirmPassword) {
+        if (errorEl) errorEl.textContent = '两次输入的新密码不一致';
+        return;
+    }
+
+    const res = await api('/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+    });
+
+    if (res.ok) {
+        closeChangePasswordModal();
+        alert('密码修改成功，请使用新密码继续登录。');
+    } else {
+        const data = await res.json();
+        if (errorEl) errorEl.textContent = data.error || '修改失败';
+    }
 }
 
 document.getElementById('createProjectForm').addEventListener('submit', async (e) => {
