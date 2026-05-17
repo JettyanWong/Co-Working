@@ -4,89 +4,628 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>文档 - Coworking</title>
+    <link rel="stylesheet" href="/static/css/industrial-ui.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/monokai.min.css">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
-        .header { background: #4a90d9; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-size: 18px; }
-        .header a { color: white; text-decoration: none; }
-        .header-actions { display: flex; align-items: center; gap: 10px; }
-        .toolbar { background: #f8f8f8; padding: 10px 20px; border-bottom: 1px solid #ddd; display: flex; gap: 10px; align-items: center; }
-        .toolbar.edit-mode { background: #fff3cd; }
-        .btn { padding: 6px 12px; background: #4a90d9; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
-        .btn:hover { background: #3a7fc9; }
-        .btn-outline { background: white; color: #4a90d9; border: 1px solid #4a90d9; }
-        .btn-outline:hover { background: #e3f2fd; }
-        .btn-sm { padding: 3px 8px; font-size: 11px; }
-        .btn-secondary { background: #6c757d; }
-        .btn-secondary:hover { background: #5a6268; }
-        .btn-success { background: #28a745; }
-        .btn-success:hover { background: #218838; }
-        .doc-container { max-width: 900px; margin: 20px auto; }
-        .cell { background: white; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 12px; overflow: hidden; }
-        .cell-header { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: #fafafa; border-bottom: 1px solid #eee; font-size: 11px; color: #999; }
-        .cell-header .cell-type-badge { font-weight: bold; text-transform: uppercase; }
-        .cell-header .cell-type-badge.markdown { color: #4a90d9; }
-        .cell-header .cell-type-badge.code { color: #28a745; }
-        .cell-header .cell-type-badge.image { color: #e83e8c; }
-        /* Image cell styles */
-        .cell-view.image { text-align: center; }
-        .cell-view.image img { max-width: 100%; max-height: 500px; border-radius: 4px; }
-        .cell-editor .image-upload-area { border: 2px dashed #ddd; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; }
-        .cell-editor .image-upload-area:hover { border-color: #e83e8c; background: #fdf2f8; }
-        .cell-editor .image-preview { margin-top: 10px; text-align: center; }
-        .cell-editor .image-preview img { max-width: 100%; max-height: 300px; border-radius: 4px; }
-        .cell-editor .image-url-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 8px; font-size: 13px; }
-        /* Table editor */
-        .table-editor-container { margin-top: 10px; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
-        .table-editor-toolbar { background: #f5f5f5; padding: 6px 10px; display: flex; gap: 6px; align-items: center; border-bottom: 1px solid #e0e0e0; }
-        .table-editor-toolbar button { padding: 3px 10px; font-size: 12px; border: 1px solid #ccc; background: white; border-radius: 3px; cursor: pointer; color: #333; }
-        .table-editor-toolbar button:hover { background: #e8e8e8; }
-        .table-editor-toolbar button.danger { color: #dc3545; border-color: #dc3545; }
-        .table-editor-toolbar button.danger:hover { background: #fff5f5; }
-        .table-editor-toolbar span { font-size: 11px; color: #888; margin-left: auto; }
-        .editable-table { width: 100%; border-collapse: collapse; }
-        .editable-table th, .editable-table td { border: 1px solid #ddd; padding: 0; position: relative; }
-        .editable-table th { background: #f8f8f8; }
-        .editable-table .cell-content { padding: 6px 8px; min-width: 60px; min-height: 24px; outline: none; font-size: 13px; }
-        .editable-table .cell-content:focus { background: #e3f2fd; }
-        .editable-table .del-row-btn, .editable-table .del-col-btn { position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; font-size: 10px; line-height: 14px; text-align: center; background: #ff6b6b; color: white; border: none; border-radius: 50%; cursor: pointer; opacity: 0; transition: opacity 0.15s; }
-        .editable-table th:hover .del-col-btn, .editable-table td:hover .del-row-btn { opacity: 1; }
-        .editable-table .del-row-btn:hover, .editable-table .del-col-btn:hover { background: #dc3545; }
-        .cell-actions { display: flex; gap: 4px; }
-        .cell-actions button { padding: 2px 6px; font-size: 10px; border: 1px solid #ddd; background: white; border-radius: 3px; cursor: pointer; color: #666; }
-        .cell-actions button:hover { background: #f0f0f0; }
-        .cell-body { padding: 15px; }
-        /* View mode */
-        .cell-view { cursor: pointer; min-height: 30px; }
-        .cell-view:hover { background: #fafafa; border-radius: 4px; }
-        .cell-view.markdown { line-height: 1.7; }
-        .cell-view.markdown h1, .cell-view.markdown h2, .cell-view.markdown h3 { margin: 8px 0 4px; }
-        .cell-view.markdown h1 { font-size: 1.6em; border-bottom: 1px solid #eee; padding-bottom: 4px; }
-        .cell-view.markdown h2 { font-size: 1.3em; }
-        .cell-view.markdown h3 { font-size: 1.1em; }
-        .cell-view.markdown p { margin: 4px 0; }
-        .cell-view.markdown ul, .cell-view.markdown ol { padding-left: 20px; margin: 4px 0; }
-        .cell-view.markdown li { margin: 2px 0; }
-        .cell-view.markdown code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
-        .cell-view.markdown pre { background: #2d2d2d; color: #f8f8f2; padding: 12px; border-radius: 4px; overflow-x: auto; margin: 8px 0; }
-        .cell-view.markdown pre code { background: none; padding: 0; color: inherit; }
-        .cell-view.markdown blockquote { border-left: 3px solid #4a90d9; padding-left: 12px; margin: 8px 0; color: #666; }
-        .cell-view.markdown table { border-collapse: collapse; margin: 8px 0; }
-        .cell-view.markdown th, .cell-view.markdown td { border: 1px solid #ddd; padding: 6px 10px; }
-        .cell-view.markdown th { background: #f8f8f8; }
-        .cell-view.code pre { background: #2d2d2d; color: #f8f8f2; padding: 12px; border-radius: 4px; overflow-x: auto; margin: 0; font-family: 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 1.5; }
-        /* Edit mode */
-        .cell-editor textarea { width: 100%; min-height: 80px; padding: 10px; border: 2px solid #4a90d9; border-radius: 4px; font-family: inherit; font-size: 14px; line-height: 1.6; resize: vertical; outline: none; }
-        .cell-editor .CodeMirror { border: 2px solid #28a745; border-radius: 4px; height: auto; min-height: 80px; }
-        .cell-edit-hint { font-size: 10px; color: #999; margin-top: 4px; }
-        /* Add cell area */
-        .add-cell-area { text-align: center; padding: 15px; }
-        .add-cell-area button { margin: 0 4px; }
-        .status-bar { font-size: 12px; color: #888; }
-        .hidden { display: none; }
+        * { box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.25rem;
+            background:
+                linear-gradient(180deg, rgba(12, 17, 23, 0.96), rgba(9, 13, 18, 0.92));
+            border-bottom: 1px solid rgba(153, 180, 214, 0.18);
+            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+            backdrop-filter: blur(16px);
+        }
+
+        .header h1 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            font-size: clamp(1.1rem, 2vw, 1.55rem);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--ui-text);
+        }
+
+        .header a {
+            color: var(--ui-accent);
+            text-decoration: none;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.55rem;
+            flex-wrap: wrap;
+        }
+
+        #status {
+            color: var(--ui-accent-strong);
+        }
+
+        #onlineUsers {
+            min-height: 28px;
+        }
+
+        .status-bar,
+        #onlineUsers {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 0.35rem 0.7rem;
+            border-radius: 999px;
+            border: 1px solid rgba(153, 180, 214, 0.18);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--ui-text);
+            font-size: 0.73rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            flex-wrap: wrap;
+            padding: 0.95rem 1.1rem;
+            border-bottom: 1px solid rgba(153, 180, 214, 0.14);
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 26%),
+                rgba(17, 24, 33, 0.94);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        }
+
+        .toolbar > span {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 0.35rem 0.7rem;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 191, 115, 0.22);
+            background: rgba(255, 191, 115, 0.08);
+            color: var(--ui-warn) !important;
+            letter-spacing: 0.14em !important;
+            text-transform: uppercase;
+        }
+
+        .toolbar.edit-mode {
+            background:
+                linear-gradient(180deg, rgba(121, 199, 255, 0.12), rgba(255, 255, 255, 0.02)),
+                rgba(17, 24, 33, 0.98);
+            border-bottom-color: rgba(121, 199, 255, 0.22);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            min-height: 42px;
+            padding: 0.72rem 1rem;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
+                linear-gradient(180deg, rgba(30, 42, 56, 0.96), rgba(17, 24, 33, 0.96));
+            color: var(--ui-text);
+            border: 1px solid rgba(153, 180, 214, 0.18);
+            border-radius: var(--ui-radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            text-decoration: none;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 12px 24px rgba(0, 0, 0, 0.24);
+            transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            border-color: rgba(121, 199, 255, 0.32);
+            box-shadow: 0 16px 30px rgba(0, 0, 0, 0.28), 0 0 24px rgba(121, 199, 255, 0.08);
+        }
+
+        .btn-outline {
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
+                rgba(255, 255, 255, 0.02);
+            color: var(--ui-text);
+        }
+
+        .btn-outline:hover {
+            background:
+                linear-gradient(180deg, rgba(121, 199, 255, 0.12), transparent),
+                rgba(121, 199, 255, 0.06);
+        }
+
+        .btn-secondary {
+            border-color: rgba(153, 180, 214, 0.18);
+        }
+
+        .btn-success {
+            border-color: rgba(151, 208, 127, 0.24);
+            background:
+                linear-gradient(180deg, rgba(151, 208, 127, 0.16), transparent),
+                linear-gradient(180deg, rgba(28, 46, 31, 0.98), rgba(17, 28, 20, 0.98));
+        }
+
+        #editToggleBtn.btn-success {
+            box-shadow: 0 0 0 1px rgba(151, 208, 127, 0.12), 0 0 28px rgba(151, 208, 127, 0.14);
+        }
+
+        .btn-sm {
+            min-height: 36px;
+            padding: 0.55rem 0.82rem;
+            font-size: 0.8rem;
+        }
+
+        .doc-container {
+            max-width: 1480px;
+            width: calc(100% - 24px);
+            margin: 1rem auto 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.9rem;
+        }
+
+        .doc-container::before {
+            content: "DOCUMENT BAY / 中央文档舱";
+            display: block;
+            padding: 0 0.2rem 0.1rem;
+            color: var(--ui-muted);
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+        }
+
+        #cells-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.9rem;
+        }
+
+        .add-cell-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.7rem;
+            padding: 0.1rem 0.2rem 0.2rem;
+        }
+
+        .add-cell-area::before {
+            content: "";
+            flex-basis: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(153, 180, 214, 0.16), transparent);
+            margin-bottom: 0.3rem;
+        }
+
+        .add-cell-area button {
+            flex: 1 1 180px;
+        }
+
+        .cell {
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(7, 10, 14, 0.24)),
+                rgba(17, 24, 33, 0.96);
+            border: 1px solid rgba(153, 180, 214, 0.14);
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 20px 44px rgba(0, 0, 0, 0.28);
+        }
+
+        .cell:hover {
+            border-color: rgba(121, 199, 255, 0.22);
+            box-shadow: 0 22px 46px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(121, 199, 255, 0.06);
+        }
+
+        .cell-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.85rem 1rem;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+            border-bottom: 1px solid rgba(153, 180, 214, 0.1);
+            font-size: 11px;
+            color: var(--ui-muted);
+        }
+
+        .cell-header .cell-type-badge {
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.35rem 0.7rem;
+            border-radius: 999px;
+            border: 1px solid rgba(153, 180, 214, 0.16);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--ui-muted);
+        }
+
+        .cell-header .cell-type-badge.markdown {
+            color: var(--ui-accent-strong);
+            border-color: rgba(121, 199, 255, 0.28);
+            background: rgba(121, 199, 255, 0.08);
+        }
+
+        .cell-header .cell-type-badge.code {
+            color: #b7e5a5;
+            border-color: rgba(151, 208, 127, 0.28);
+            background: rgba(151, 208, 127, 0.08);
+        }
+
+        .cell-header .cell-type-badge.image {
+            color: var(--ui-warn);
+            border-color: rgba(255, 191, 115, 0.3);
+            background: rgba(255, 191, 115, 0.08);
+        }
+
+        .cell-actions {
+            display: flex;
+            gap: 0.35rem;
+        }
+
+        .cell-actions button {
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            border-radius: 10px;
+            border: 1px solid rgba(153, 180, 214, 0.16);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--ui-text);
+            cursor: pointer;
+            transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+        }
+
+        .cell-actions button:hover {
+            transform: translateY(-1px);
+            border-color: rgba(121, 199, 255, 0.28);
+            background: rgba(121, 199, 255, 0.08);
+        }
+
+        .cell-body {
+            padding: 1rem;
+        }
+
+        .cell-view {
+            cursor: pointer;
+            min-height: 30px;
+        }
+
+        .cell-view:hover {
+            background: rgba(121, 199, 255, 0.03);
+            border-radius: 12px;
+        }
+
+        .cell-view.markdown {
+            line-height: 1.75;
+        }
+
+        .cell-view.markdown h1,
+        .cell-view.markdown h2,
+        .cell-view.markdown h3 {
+            margin: 0.8rem 0 0.35rem;
+        }
+
+        .cell-view.markdown h1 {
+            font-size: 1.55rem;
+            border-bottom: 1px solid rgba(153, 180, 214, 0.12);
+            padding-bottom: 0.35rem;
+        }
+
+        .cell-view.markdown h2 {
+            font-size: 1.25rem;
+        }
+
+        .cell-view.markdown h3 {
+            font-size: 1.08rem;
+        }
+
+        .cell-view.markdown p {
+            margin: 0.45rem 0;
+        }
+
+        .cell-view.markdown ul,
+        .cell-view.markdown ol {
+            padding-left: 1.25rem;
+            margin: 0.45rem 0;
+        }
+
+        .cell-view.markdown li {
+            margin: 0.2rem 0;
+        }
+
+        .cell-view.markdown code {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.1rem 0.32rem;
+            border-radius: 0.3rem;
+            font-size: 0.9em;
+        }
+
+        .cell-view.markdown pre {
+            background: rgba(7, 10, 14, 0.96);
+            color: #f8f8f2;
+            padding: 0.95rem;
+            border-radius: 14px;
+            overflow-x: auto;
+            margin: 0.7rem 0;
+            border: 1px solid rgba(153, 180, 214, 0.12);
+        }
+
+        .cell-view.markdown pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+
+        .cell-view.markdown blockquote {
+            border-left: 3px solid var(--ui-accent);
+            padding-left: 0.9rem;
+            margin: 0.7rem 0;
+            color: var(--ui-muted);
+        }
+
+        .cell-view.markdown table {
+            border-collapse: collapse;
+            margin: 0.7rem 0;
+        }
+
+        .cell-view.markdown th,
+        .cell-view.markdown td {
+            border: 1px solid rgba(153, 180, 214, 0.14);
+            padding: 0.45rem 0.7rem;
+        }
+
+        .cell-view.markdown th {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .cell-view.code pre {
+            background: rgba(7, 10, 14, 0.96);
+            color: #f8f8f2;
+            padding: 1rem;
+            border-radius: 14px;
+            overflow-x: auto;
+            margin: 0;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 13px;
+            line-height: 1.55;
+            border: 1px solid rgba(153, 180, 214, 0.12);
+        }
+
+        .cell-editor textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 0.95rem;
+            border: 1px solid rgba(121, 199, 255, 0.3);
+            border-radius: 14px;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.65;
+            resize: vertical;
+            outline: none;
+            background: rgba(7, 10, 14, 0.82);
+            color: var(--ui-text);
+        }
+
+        .cell-editor textarea:focus {
+            border-color: rgba(121, 199, 255, 0.55);
+            box-shadow: 0 0 0 3px rgba(121, 199, 255, 0.1);
+        }
+
+        .cell-editor .CodeMirror {
+            border: 1px solid rgba(151, 208, 127, 0.26);
+            border-radius: 14px;
+            height: auto;
+            min-height: 120px;
+            overflow: hidden;
+        }
+
+        .cell-edit-hint {
+            font-size: 0.78rem;
+            color: var(--ui-faint);
+            margin-top: 0.55rem;
+        }
+
+        .cell-view.image {
+            text-align: center;
+        }
+
+        .cell-view.image img {
+            max-width: 100%;
+            max-height: 500px;
+            border-radius: 14px;
+            border: 1px solid rgba(153, 180, 214, 0.12);
+        }
+
+        .cell-editor .image-upload-area {
+            border: 1px dashed rgba(153, 180, 214, 0.32);
+            border-radius: 14px;
+            padding: 1.4rem;
+            text-align: center;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.02);
+            transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+        }
+
+        .cell-editor .image-upload-area:hover {
+            border-color: rgba(121, 199, 255, 0.38);
+            background: rgba(121, 199, 255, 0.05);
+            transform: translateY(-1px);
+        }
+
+        .cell-editor .image-preview {
+            margin-top: 0.85rem;
+            text-align: center;
+        }
+
+        .cell-editor .image-preview img {
+            max-width: 100%;
+            max-height: 320px;
+            border-radius: 14px;
+            border: 1px solid rgba(153, 180, 214, 0.12);
+        }
+
+        .cell-editor .image-url-input {
+            width: 100%;
+            margin-top: 0.85rem;
+        }
+
+        .table-editor-container {
+            margin-top: 1rem;
+            border: 1px solid rgba(153, 180, 214, 0.14);
+            border-radius: 16px;
+            overflow: hidden;
+            background: rgba(7, 10, 14, 0.8);
+        }
+
+        .table-editor-toolbar {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 0.75rem;
+            display: flex;
+            gap: 0.45rem;
+            align-items: center;
+            flex-wrap: wrap;
+            border-bottom: 1px solid rgba(153, 180, 214, 0.12);
+        }
+
+        .table-editor-toolbar button {
+            padding: 0.45rem 0.7rem;
+            font-size: 0.78rem;
+            border: 1px solid rgba(153, 180, 214, 0.16);
+            background: rgba(255, 255, 255, 0.02);
+            color: var(--ui-text);
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .table-editor-toolbar button:hover {
+            border-color: rgba(121, 199, 255, 0.25);
+            background: rgba(121, 199, 255, 0.07);
+        }
+
+        .table-editor-toolbar button.danger {
+            border-color: rgba(255, 112, 134, 0.26);
+            color: #ffb8c4;
+        }
+
+        .table-editor-toolbar span {
+            margin-left: auto;
+            color: var(--ui-muted);
+            font-size: 0.76rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .editable-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .editable-table th,
+        .editable-table td {
+            position: relative;
+            border: 1px solid rgba(153, 180, 214, 0.12);
+        }
+
+        .editable-table th {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .editable-table .cell-content {
+            padding: 0.6rem 0.75rem;
+            min-width: 60px;
+            min-height: 24px;
+            outline: none;
+            font-size: 13px;
+            color: var(--ui-text);
+        }
+
+        .editable-table .cell-content:focus {
+            background: rgba(121, 199, 255, 0.08);
+        }
+
+        .editable-table .del-row-btn,
+        .editable-table .del-col-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 16px;
+            height: 16px;
+            font-size: 10px;
+            line-height: 14px;
+            text-align: center;
+            background: rgba(255, 112, 134, 0.95);
+            color: white;
+            border: none;
+            border-radius: 999px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.15s, transform 0.15s;
+        }
+
+        .editable-table th:hover .del-col-btn,
+        .editable-table td:hover .del-row-btn {
+            opacity: 1;
+        }
+
+        .editable-table .del-row-btn:hover,
+        .editable-table .del-col-btn:hover {
+            transform: scale(1.06);
+            background: #dc3545;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 1024px) {
+            .doc-container {
+                width: calc(100% - 16px);
+            }
+
+            .header {
+                align-items: flex-start;
+            }
+
+            .header-actions {
+                justify-content: flex-start;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .header,
+            .toolbar {
+                padding-left: 0.8rem;
+                padding-right: 0.8rem;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .toolbar .btn {
+                flex: 1 1 100%;
+            }
+
+            .add-cell-area button {
+                flex: 1 1 100%;
+            }
+        }
     </style>
 </head>
 <body>
