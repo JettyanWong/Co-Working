@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
 from app import db
@@ -5,6 +6,16 @@ from app.models import Task, Project, ProjectMember
 from app.utils.decorators import has_project_access
 
 bp = Blueprint('tasks', __name__, url_prefix='/api')
+
+
+def _apply_task_status(task, status):
+    task.status = status
+
+    if status == 'completed':
+        if not task.completed_at:
+            task.completed_at = datetime.utcnow()
+    else:
+        task.completed_at = None
 
 
 @bp.route('/projects/<int:project_id>/tasks', methods=['GET'])
@@ -72,7 +83,7 @@ def update_task(task_id):
     if 'status' in data:
         if task.assignee_id != current_user.id and task.project.owner_id != current_user.id:
             return jsonify({'error': 'Only assignee can change task status'}), 403
-        task.status = data['status']
+        _apply_task_status(task, data['status'])
 
     # Title/description can be changed by any member
     if 'title' in data:
@@ -108,9 +119,11 @@ def claim_task(task_id):
         return jsonify({'error': 'Member access required'}), 403
     if task.assignee_id:
         return jsonify({'error': 'Task already assigned'}), 400
+    if task.status == 'completed':
+        return jsonify({'error': 'Completed tasks cannot be claimed'}), 400
 
     task.assignee_id = current_user.id
-    task.status = 'in_progress'
+    _apply_task_status(task, 'in_progress')
     db.session.commit()
     return jsonify({'message': 'Task claimed', 'task': task.to_dict()})
 
@@ -122,6 +135,6 @@ def complete_task(task_id):
     if task.assignee_id != current_user.id and task.project.owner_id != current_user.id:
         return jsonify({'error': 'Only assignee or owner can complete task'}), 403
 
-    task.status = 'completed'
+    _apply_task_status(task, 'completed')
     db.session.commit()
     return jsonify({'message': 'Task completed', 'task': task.to_dict()})

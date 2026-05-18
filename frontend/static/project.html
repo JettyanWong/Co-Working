@@ -149,6 +149,22 @@
             text-transform: uppercase;
         }
 
+        .task-detail-grid {
+            display: grid;
+            grid-template-columns: minmax(120px, 160px) minmax(0, 1fr);
+            gap: 0.75rem 1rem;
+        }
+
+        .task-detail-label {
+            color: var(--ui-muted);
+        }
+
+        .task-detail-value {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
         .modal-actions {
             display: flex;
             flex-wrap: wrap;
@@ -305,6 +321,38 @@
         </div>
     </div>
 
+    <!-- Task Detail Modal -->
+    <div id="taskDetailModal" class="modal">
+        <div class="modal-content card" style="width:min(100%,640px);">
+            <div class="card-head" style="margin-bottom:1rem;">
+                <div>
+                    <p class="eyebrow">Task Detail</p>
+                    <h3 id="taskDetailHeading" style="margin:0;">任务详情</h3>
+                </div>
+                <button type="button" class="btn btn-ghost" onclick="closeTaskDetailModal()" aria-label="关闭">✕</button>
+            </div>
+            <dl class="task-detail-grid">
+                <dt class="task-detail-label">标题</dt>
+                <dd id="taskDetailTitle" class="task-detail-value">-</dd>
+                <dt class="task-detail-label">描述</dt>
+                <dd id="taskDetailDescription" class="task-detail-value">-</dd>
+                <dt class="task-detail-label">状态</dt>
+                <dd id="taskDetailStatus" class="task-detail-value">-</dd>
+                <dt class="task-detail-label">负责人</dt>
+                <dd id="taskDetailAssignee" class="task-detail-value">-</dd>
+                <dt class="task-detail-label">创建人</dt>
+                <dd id="taskDetailCreator" class="task-detail-value">-</dd>
+                <dt class="task-detail-label">创建时间</dt>
+                <dd id="taskDetailCreatedAt" class="task-detail-value">-</dd>
+                <dt class="task-detail-label">完成时间</dt>
+                <dd id="taskDetailCompletedAt" class="task-detail-value">-</dd>
+            </dl>
+            <div class="modal-actions">
+                <button class="btn btn-danger" type="button" onclick="closeTaskDetailModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Document Modal -->
     <div id="docModal" class="modal">
         <div class="modal-content card">
@@ -394,6 +442,7 @@
                     <td><span class="status ${t.status}">${t.status === 'in_progress' ? '进行中' : t.status === 'completed' ? '已完成' : '待处理'}</span></td>
                     <td>${t.assignee || '-'}</td>
                     <td>
+                        <button class="btn" onclick="showTaskDetail(${t.id})">详情</button>
                         ${!t.assignee_id ? '<button class="btn" onclick="claimTask(' + t.id + ')">认领</button>' : ''}
                         ${canComplete ? '<button class="btn" onclick="completeTask(' + t.id + ')" style="margin-left:5px;">完成</button>' : ''}
                         ${canDelete ? '<button class="btn btn-danger" onclick="deleteTask(' + t.id + ')" style="margin-left:5px;">删除</button>' : ''}
@@ -405,6 +454,41 @@
         function getCurrentUserId() {
             const user = JSON.parse(localStorage.getItem('user') || '{}');
             return user.id;
+        }
+
+        function formatTaskStatus(status) {
+            if (status === 'in_progress') return '进行中';
+            if (status === 'completed') return '已完成';
+            return '待处理';
+        }
+
+        function formatTaskDate(value) {
+            return value ? new Date(value).toLocaleString('zh-CN') : '-';
+        }
+
+        function closeTaskDetailModal() {
+            document.getElementById('taskDetailModal').classList.remove('show');
+        }
+
+        async function showTaskDetail(taskId) {
+            const res = await api(`/tasks/${taskId}`);
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                alert(data.error || '加载任务详情失败');
+                return;
+            }
+
+            const data = await res.json();
+            const task = data.task || {};
+            document.getElementById('taskDetailHeading').textContent = task.title || '任务详情';
+            document.getElementById('taskDetailTitle').textContent = task.title || '-';
+            document.getElementById('taskDetailDescription').textContent = task.description || '无';
+            document.getElementById('taskDetailStatus').innerHTML = `<span class="status ${task.status || 'pending'}">${formatTaskStatus(task.status)}</span>`;
+            document.getElementById('taskDetailAssignee').textContent = task.assignee || '未指派';
+            document.getElementById('taskDetailCreator').textContent = task.creator || '-';
+            document.getElementById('taskDetailCreatedAt').textContent = formatTaskDate(task.created_at);
+            document.getElementById('taskDetailCompletedAt').textContent = task.completed_at ? formatTaskDate(task.completed_at) : '未完成';
+            document.getElementById('taskDetailModal').classList.add('show');
         }
 
         async function showTaskModal() {

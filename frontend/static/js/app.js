@@ -21,6 +21,7 @@ function init() {
     if (currentUser.role === 'admin') {
         document.getElementById('adminNavItem').style.display = '';
     }
+    ensureTaskDetailModal();
     loadProjects();
 }
 
@@ -108,9 +109,10 @@ async function loadMyTasks() {
         <tr>
             <td>${t.projectName}</td>
             <td>${t.title}</td>
-            <td><span class="status ${t.status}">${t.status === 'in_progress' ? '进行中' : t.status === 'completed' ? '已完成' : '待处理'}</span></td>
+            <td><span class="status ${t.status}">${formatTaskStatus(t.status)}</span></td>
             <td>${t.assignee || '-'}</td>
             <td>
+                <button class="btn" onclick="showTaskDetail(${t.id})" style="margin-right:5px;">详情</button>
                 <button class="btn" onclick="viewProject(${t.project_id})" style="margin-right:5px;">查看</button>
                 ${t.created_by === currentUser.id ? `<button class="btn btn-danger" onclick="deleteTask(${t.id})" style="margin-left:5px;">删除</button>` : ''}
             </td>
@@ -228,6 +230,7 @@ function closeModal() {
     closeProjectModal();
     closeDocModal();
     closeChangePasswordModal();
+    closeTaskDetailModal();
 }
 
 async function submitChangePassword(e) {
@@ -341,6 +344,82 @@ function viewFile(fileId) {
 
 function downloadFile(fileId) {
     window.open(`${API_BASE}/files/${fileId}/download`);
+}
+
+function formatTaskStatus(status) {
+    if (status === 'in_progress') return '进行中';
+    if (status === 'completed') return '已完成';
+    return '待处理';
+}
+
+function formatTaskDate(value) {
+    return value ? new Date(value).toLocaleString('zh-CN') : '-';
+}
+
+function ensureTaskDetailModal() {
+    if (document.getElementById('taskDetailModal')) return;
+
+    const modal = document.createElement('div');
+    modal.id = 'taskDetailModal';
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="card panel--inset" style="width:min(100%,640px);">
+            <div class="card-head" style="margin-bottom:1rem;">
+                <div>
+                    <p class="eyebrow">Task Detail</p>
+                    <h2 id="taskDetailHeading" style="margin:0;">任务详情</h2>
+                </div>
+                <button type="button" class="btn btn-ghost" onclick="closeTaskDetailModal()" aria-label="关闭">✕</button>
+            </div>
+            <dl style="display:grid;grid-template-columns:minmax(120px,160px) minmax(0,1fr);gap:0.75rem 1rem;margin:0;">
+                <dt style="color:var(--ui-muted);">标题</dt>
+                <dd id="taskDetailTitle" style="margin:0;white-space:pre-wrap;word-break:break-word;">-</dd>
+                <dt style="color:var(--ui-muted);">描述</dt>
+                <dd id="taskDetailDescription" style="margin:0;white-space:pre-wrap;word-break:break-word;">-</dd>
+                <dt style="color:var(--ui-muted);">状态</dt>
+                <dd id="taskDetailStatus" style="margin:0;">-</dd>
+                <dt style="color:var(--ui-muted);">负责人</dt>
+                <dd id="taskDetailAssignee" style="margin:0;">-</dd>
+                <dt style="color:var(--ui-muted);">创建人</dt>
+                <dd id="taskDetailCreator" style="margin:0;">-</dd>
+                <dt style="color:var(--ui-muted);">创建时间</dt>
+                <dd id="taskDetailCreatedAt" style="margin:0;">-</dd>
+                <dt style="color:var(--ui-muted);">完成时间</dt>
+                <dd id="taskDetailCompletedAt" style="margin:0;">-</dd>
+            </dl>
+            <div class="modal-actions">
+                <button class="btn btn-danger" type="button" onclick="closeTaskDetailModal()">关闭</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function closeTaskDetailModal() {
+    const modal = document.getElementById('taskDetailModal');
+    if (modal) modal.classList.remove('show');
+}
+
+async function showTaskDetail(taskId) {
+    ensureTaskDetailModal();
+    const res = await api(`/tasks/${taskId}`);
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || '加载任务详情失败');
+        return;
+    }
+
+    const data = await res.json();
+    const task = data.task || {};
+    document.getElementById('taskDetailHeading').textContent = task.title || '任务详情';
+    document.getElementById('taskDetailTitle').textContent = task.title || '-';
+    document.getElementById('taskDetailDescription').textContent = task.description || '无';
+    document.getElementById('taskDetailStatus').innerHTML = `<span class="status ${task.status || 'pending'}">${formatTaskStatus(task.status)}</span>`;
+    document.getElementById('taskDetailAssignee').textContent = task.assignee || '未指派';
+    document.getElementById('taskDetailCreator').textContent = task.creator || '-';
+    document.getElementById('taskDetailCreatedAt').textContent = formatTaskDate(task.created_at);
+    document.getElementById('taskDetailCompletedAt').textContent = task.completed_at ? formatTaskDate(task.completed_at) : '未完成';
+    document.getElementById('taskDetailModal').classList.add('show');
 }
 
 async function uploadFile() {

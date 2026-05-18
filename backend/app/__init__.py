@@ -74,6 +74,12 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        # Migration: add completed_at column to existing tasks table
+        try:
+            db.session.execute(db.text("ALTER TABLE tasks ADD COLUMN completed_at DATETIME"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
         # Migration: add status column and activate existing users
         try:
             db.session.execute(db.text("ALTER TABLE users ADD COLUMN status VARCHAR(10) DEFAULT 'pending'"))

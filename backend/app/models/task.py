@@ -13,6 +13,7 @@ class Task(db.Model):
     assignee_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime, nullable=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def to_dict(self):
@@ -27,5 +28,6 @@ class Task(db.Model):
             'created_by': self.created_by,
             'creator': self.creator.username if self.creator else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
